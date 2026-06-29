@@ -1,0 +1,39 @@
+{
+  "name": "aa-annotate",
+  "version": "0.1.0",
+  "description": "Launch a Windows annotation overlay so users can mark screenshots and return a review handoff to Codex.",
+  "author": {
+    "name": "Adil Adiloglu",
+    "url": "https://github.com/adiladiloglu"
+  },
+  "homepage": "https://github.com/adiladiloglu/AA.Annotate",
+  "repository": "https://github.com/adiladiloglu/AA.Annotate",
+  "license": "MIT",
+  "keywords": [
+    "ai-agents",
+    "annotation",
+    "agent-handoff",
+    "desktop",
+    "screenshot",
+    "windows"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AA Annotate",
+    "shortDescription": "Collect visual screenshot annotations from users",
+    "longDescription": "AA Annotate lets Codex start a small Windows overlay, wait while the user captures and annotates one or more screenshots, and continue from the generated review handoff.",
+    "developerName": "Adil Adiloglu",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/adiladiloglu/AA.Annotate",
+    "defaultPrompt": [
+      "Ask me to annotate what matters on screen"
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

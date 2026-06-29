@@ -9,7 +9,15 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 
 ## Workflow
 
-1. Start an annotation session with the installed AA Annotate CLI and wait for completion:
+1. Start an annotation session and wait for completion.
+
+   If this skill is loaded from the bundled Codex plugin, resolve the directory containing this `SKILL.md`; the plugin root is two directories up, and the preferred CLI path is:
+
+   ```powershell
+   & "<plugin-root>\cli\aa-annotate.exe" session --wait --timeout-seconds 60
+   ```
+
+   If the app was installed from the release installer, use:
 
    ```powershell
    & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
@@ -65,5 +73,5 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 - Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. This one-minute inactivity period is the recommended agent workflow.
 - Pass `--session-root <folder>` when the user wants session files stored somewhere other than the default OS temp location.
 - If `--timeout-seconds` is omitted, the CLI uses a ten-minute inactivity period. The app resets the timer when the user interacts with it and shows a finite warning before closing an inactive session.
-- If the installed CLI path does not exist, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the bundled executable.
+- If neither the plugin-local CLI nor the installed CLI path exists, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the executable.
 - If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.

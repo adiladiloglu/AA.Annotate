@@ -50,6 +50,11 @@ if (Test-Path -LiteralPath $claudePluginSource) {
     Copy-Item -LiteralPath $claudePluginSource -Destination (Join-Path $packageRoot '.claude-plugin') -Recurse
 }
 
+$codexPluginSource = Join-Path $repoRoot '.codex-plugin'
+if (Test-Path -LiteralPath $codexPluginSource) {
+    Copy-Item -LiteralPath $codexPluginSource -Destination (Join-Path $packageRoot '.codex-plugin') -Recurse
+}
+
 $manifest = [ordered]@{
     name = 'aa-annotate'
     version = $Version
@@ -65,6 +70,8 @@ $manifest = [ordered]@{
     defaultInstallRoot = '%LOCALAPPDATA%/AA.Annotate'
     defaultSkillPath = '%USERPROFILE%/.codex/skills/aa-annotate'
     pluginMetadata = '.claude-plugin/plugin.json'
+    claudePluginMetadata = '.claude-plugin/plugin.json'
+    codexPluginMetadata = '.codex-plugin/plugin.json'
 }
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $packageRoot 'manifest.json') -Encoding UTF8

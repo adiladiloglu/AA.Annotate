@@ -1,6 +1,6 @@
 {
   "name": "aa-annotate",
-  "description": "Windows screenshot annotation overlay and agent skill for visual user handoff",
+  "description": "Windows annotation overlay for collecting screenshot comments during agent sessions",
   "version": "0.1.0",
   "author": {
     "name": "Adil Adiloglu"
@@ -11,6 +11,7 @@
   "keywords": [
     "ai-agents",
     "annotation",
+    "agent-handoff",
     "desktop",
     "screenshot",
     "windows"
