@@ -82,6 +82,15 @@ public partial class CaptureDropdown : UserControl
         }
     }
 
+    public void SetCanCreateCapture(bool canCreate)
+    {
+        NewCaptureButton.IsEnabled = canCreate;
+        NewCaptureButton.Opacity = canCreate ? 1 : 0.45;
+        ToolTip.SetTip(
+            NewCaptureButton,
+            canCreate ? "New capture" : "Finish the current crop or annotation first");
+    }
+
     private static Control CreateContent(CaptureViewModel capture)
     {
         var image = new Image

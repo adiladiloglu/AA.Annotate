@@ -46,6 +46,14 @@ public partial class FloatingCommandBar : UserControl
         AnnotationButton.Classes.Set("iconButton", !isActive);
     }
 
+    public void SetCaptureControlsEnabled(bool isEnabled)
+    {
+        CaptureButton.IsEnabled = isEnabled;
+        CaptureSelectorButton.IsEnabled = isEnabled;
+        CaptureButton.Opacity = isEnabled ? 1 : 0.45;
+        CaptureSelectorButton.Opacity = isEnabled ? 1 : 0.45;
+    }
+
     public void PlayStartupAttentionAnimation()
     {
         _attentionTimer?.Stop();

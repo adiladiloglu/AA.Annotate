@@ -70,7 +70,7 @@ public partial class MainWindow : Window
         AnnotationCanvas.PointerMoved += OnAnnotationPointerMoved;
         AnnotationCanvas.PointerReleased += OnAnnotationPointerReleased;
         CommandBar.MoveSelectorRequested += (_, _) => ToggleDisplayDropdown();
-        CommandBar.CaptureRequested += async (_, _) => await CaptureAsync();
+        CommandBar.CaptureRequested += async (_, _) => await RequestCaptureAsync();
         CommandBar.CaptureSelectorRequested += (_, _) => ToggleCaptureDropdown();
         CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
         CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
@@ -79,7 +79,7 @@ public partial class MainWindow : Window
         DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
         CaptureDropdown.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
         CaptureDropdown.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
-        CaptureDropdown.NewCaptureRequested += async (_, _) => await CaptureAsync();
+        CaptureDropdown.NewCaptureRequested += async (_, _) => await RequestCaptureAsync();
         CommentEditor.DeleteRequested += (_, _) => DeleteCommentTarget();
         CommentEditor.SaveRequested += (_, text) => SaveCommentTarget(text);
         CropOverlay.CropChanged += (_, crop) => BlurredCropMask.SetCrop(crop);
@@ -345,6 +345,7 @@ public partial class MainWindow : Window
         }
 
         StoreCurrentCrop();
+        var previousCapture = _session.CurrentCapture;
         _isCapturing = true;
         DisplayDropdown.IsVisible = false;
         CaptureDropdown.IsVisible = false;
@@ -377,6 +378,7 @@ public partial class MainWindow : Window
             captured.PixelSize,
             captured.Display.Bounds,
             isSelected: true);
+        CaptureCropInheritancePolicy.TryCopyCrop(previousCapture, capture);
 
         foreach (var existing in _session.Captures)
         {
@@ -391,6 +393,19 @@ public partial class MainWindow : Window
         }
 
         _isCapturing = false;
+        UpdateChrome();
+    }
+
+    private async Task RequestCaptureAsync()
+    {
+        if (!CanUseCaptureControls())
+        {
+            CaptureDropdown.IsVisible = false;
+            UpdateChrome();
+            return;
+        }
+
+        await CaptureAsync();
     }
 
     private async Task ActivateCropAsync()
@@ -449,6 +464,7 @@ public partial class MainWindow : Window
             CropOverlay.IsVisible = false;
             RefreshCropMaskVisibility();
             ApplyCurrentWindowMode();
+            UpdateChrome();
             return;
         }
 
@@ -463,6 +479,7 @@ public partial class MainWindow : Window
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility();
+        UpdateChrome();
     }
 
     private DisplayDescriptor GetDisplayContainingWindow()
@@ -635,7 +652,17 @@ public partial class MainWindow : Window
 
     private void ToggleCaptureDropdown()
     {
+        if (!CanUseCaptureControls())
+        {
+            CaptureDropdown.IsVisible = false;
+            UpdateChrome();
+            return;
+        }
+
         CaptureDropdown.IsVisible = !CaptureDropdown.IsVisible;
+        _session.Mode = CaptureDropdown.IsVisible
+            ? AnnotationInteractionMode.CaptureDropdownOpen
+            : AnnotationInteractionMode.Idle;
         DisplayDropdown.IsVisible = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
@@ -674,6 +701,7 @@ public partial class MainWindow : Window
         }
 
         RefreshCropMaskVisibility();
+        UpdateChrome();
     }
 
     private void RefreshCropMaskVisibility(bool forceHidden = false)
@@ -857,6 +885,7 @@ public partial class MainWindow : Window
         CommentEditor.IsVisible = true;
         CommentEditor.Open(annotation.Comment);
         PositionCommentEditor(annotation);
+        UpdateChrome();
     }
 
     private void PositionCommentEditor(AnnotationViewModel annotation)
@@ -911,11 +940,13 @@ public partial class MainWindow : Window
             }
 
             RefreshCropMaskVisibility();
+            UpdateChrome();
             return;
         }
 
         _session.Mode = AnnotationInteractionMode.Idle;
         ApplyCurrentWindowMode();
+        UpdateChrome();
     }
 
     private async Task FinishAsync()
@@ -1049,9 +1080,17 @@ public partial class MainWindow : Window
 
     private void UpdateChrome()
     {
+        var canUseCaptureControls = CanUseCaptureControls();
         CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
+        CommandBar.SetCaptureControlsEnabled(canUseCaptureControls);
         CaptureDropdown.SetCaptures(_session.Captures);
+        CaptureDropdown.SetCanCreateCapture(canUseCaptureControls);
         DisplayDropdown.SetDisplays(CreateDisplayViewModels());
+    }
+
+    private bool CanUseCaptureControls()
+    {
+        return CaptureCreationPolicy.CanUseCaptureControls(_session.Mode, CropOverlay.IsVisible);
     }
 
     private IReadOnlyList<DisplayViewModel> CreateDisplayViewModels()
