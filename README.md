@@ -100,27 +100,6 @@ Agents should read `REVIEW_MD` first. Use `ANNOTATIONS_JSON` only when exact coo
 5. The user adds comments.
 6. The user sends the session back to the waiting agent.
 
-## Development
-
-Prerequisites:
-
-- Windows
-- .NET SDK 10
-- PowerShell
-
-Build and test:
-
-```powershell
-dotnet build AA.Annotate.slnx -v minimal
-dotnet test AA.Annotate.slnx -v minimal
-```
-
-Create a Windows release package:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-win.ps1 -Version 0.1.0
-```
-
 ## Agent Skill
 
 The bundled Codex skill is installed with the app package:
