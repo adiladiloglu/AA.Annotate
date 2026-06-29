@@ -91,7 +91,7 @@ public sealed class SessionCommand
         var value = ReadOption(args, "--timeout-seconds");
         if (string.IsNullOrWhiteSpace(value))
         {
-            return TimeSpan.FromHours(8);
+            return TimeSpan.FromMinutes(10);
         }
 
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0

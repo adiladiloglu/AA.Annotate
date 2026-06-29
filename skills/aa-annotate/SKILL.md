@@ -56,5 +56,6 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 - Do not create screenshot or annotation files in the workspace unless the user explicitly asks. Let the tool use its default OS temp session folder.
 - Do not continue as if annotations exist when `SESSION_STATUS` is `cancelled` or `error`; tell the user the session did not complete.
 - Do not default to `session.json` or other private local state. Use `review.md` first, then `annotations.json` if structured data is required.
-- Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. The app resets this timer when the user interacts with it and shows a finite warning before closing an inactive session.
+- Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. This one-minute inactivity period is the recommended agent workflow.
+- If `--timeout-seconds` is omitted, the CLI uses a ten-minute inactivity period. The app resets the timer when the user interacts with it and shows a finite warning before closing an inactive session.
 - If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.

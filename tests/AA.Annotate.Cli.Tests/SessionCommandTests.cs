@@ -44,6 +44,21 @@ public sealed class SessionCommandTests
         Assert.Equal(TimeSpan.FromSeconds(60), launcher.IdleTimeout);
     }
 
+    [Fact]
+    public async Task RunUsesTenMinuteDefaultTimeoutWhenOptionIsOmitted()
+    {
+        var output = new StringWriter();
+        var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
+        var launcher = new RecordingLauncher();
+        var command = new SessionCommand(output, store, launcher);
+        var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
+
+        var exitCode = await command.RunAsync(["session", "--output", root]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(TimeSpan.FromMinutes(10), launcher.IdleTimeout);
+    }
+
     private sealed class ThrowingLauncher(string message) : AppLauncher
     {
         public override string ResolveExecutablePath()
