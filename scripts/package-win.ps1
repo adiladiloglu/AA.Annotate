@@ -45,9 +45,15 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\install.ps1') -De
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\uninstall.ps1') -Destination (Join-Path $packageRoot 'uninstall.ps1')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\README.txt') -Destination (Join-Path $packageRoot 'README.txt')
 
+$claudePluginSource = Join-Path $repoRoot '.claude-plugin'
+if (Test-Path -LiteralPath $claudePluginSource) {
+    Copy-Item -LiteralPath $claudePluginSource -Destination (Join-Path $packageRoot '.claude-plugin') -Recurse
+}
+
 $manifest = [ordered]@{
     name = 'aa-annotate'
     version = $Version
+    packageKind = 'app-skill-bundle'
     runtime = $Runtime
     selfContained = $SelfContained
     createdAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
@@ -56,6 +62,9 @@ $manifest = [ordered]@{
     skill = 'skills/aa-annotate'
     install = 'install.ps1'
     uninstall = 'uninstall.ps1'
+    defaultInstallRoot = '%LOCALAPPDATA%/AA.Annotate'
+    defaultSkillPath = '%USERPROFILE%/.codex/skills/aa-annotate'
+    pluginMetadata = '.claude-plugin/plugin.json'
 }
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $packageRoot 'manifest.json') -Encoding UTF8

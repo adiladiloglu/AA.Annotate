@@ -4,6 +4,9 @@ This package is distributed as:
 
   aa-annotate-<version>-win-x64.zip
 
+It installs the desktop app, CLI, and Codex skill together. The skill is not
+useful without the bundled executable.
+
 Install, user-local and non-invasive:
 
   powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -16,7 +19,7 @@ Default install locations:
 The default installer does not modify PATH and does not set persistent
 environment variables. Agents can run the tool directly with:
 
-  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
+  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
 
 Optional user-scoped registration:
 

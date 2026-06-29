@@ -1,0 +1,18 @@
+{
+  "name": "aa-annotate",
+  "description": "Windows screenshot annotation overlay and agent skill for visual user handoff",
+  "version": "0.1.0",
+  "author": {
+    "name": "Adil Adiloglu"
+  },
+  "homepage": "https://github.com/adiladiloglu/AA.Annotate",
+  "repository": "https://github.com/adiladiloglu/AA.Annotate",
+  "license": "MIT",
+  "keywords": [
+    "ai-agents",
+    "annotation",
+    "desktop",
+    "screenshot",
+    "windows"
+  ]
+}
