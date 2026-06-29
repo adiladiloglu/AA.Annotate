@@ -46,7 +46,7 @@ public partial class FloatingCommandBar : UserControl
         AnnotationButton.Classes.Set("iconButton", !isActive);
     }
 
-    public void PlayFirstRunAttentionAnimation()
+    public void PlayStartupAttentionAnimation()
     {
         _attentionTimer?.Stop();
         var transform = new ScaleTransform(1, 1);

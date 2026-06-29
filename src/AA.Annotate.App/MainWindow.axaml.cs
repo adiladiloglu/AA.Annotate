@@ -99,10 +99,7 @@ public partial class MainWindow : Window
         await EnsureSessionAsync();
         ResetIdleTimer();
         UpdateChrome();
-        if (FirstRunAnimationGate.TryClaim())
-        {
-            CommandBar.PlayFirstRunAttentionAnimation();
-        }
+        CommandBar.PlayStartupAttentionAnimation();
     }
 
     private void SuppressNativeWindowBorder()
