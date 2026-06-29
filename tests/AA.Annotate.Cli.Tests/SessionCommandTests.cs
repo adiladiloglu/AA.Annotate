@@ -8,6 +8,36 @@ namespace AA.Annotate.Cli.Tests;
 public sealed class SessionCommandTests
 {
     [Fact]
+    public async Task RunPrintsHelp()
+    {
+        var output = new StringWriter();
+        var command = new SessionCommand(output);
+
+        var exitCode = await command.RunAsync(["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Usage: aa-annotate session", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("--session-root <folder>", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("--timeout-seconds <seconds>", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunCreatesSessionUnderSessionRoot()
+    {
+        var output = new StringWriter();
+        var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
+        var launcher = new RecordingLauncher();
+        var command = new SessionCommand(output, store, launcher);
+        var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
+
+        var exitCode = await command.RunAsync(["session", "--session-root", root]);
+
+        Assert.Equal(0, exitCode);
+        Assert.StartsWith(root, launcher.SessionFolder, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"SESSION_FOLDER={launcher.SessionFolder}", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunMarksSessionErrorWhenAppLaunchFails()
     {
         var output = new StringWriter();
@@ -75,6 +105,7 @@ public sealed class SessionCommandTests
     private sealed class RecordingLauncher : AppLauncher
     {
         public TimeSpan? IdleTimeout { get; private set; }
+        public string? SessionFolder { get; private set; }
 
         public override string ResolveExecutablePath()
         {
@@ -84,6 +115,7 @@ public sealed class SessionCommandTests
         public override Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
         {
             IdleTimeout = idleTimeout;
+            SessionFolder = sessionFolder;
             return Process.GetCurrentProcess();
         }
     }

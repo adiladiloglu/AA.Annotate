@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     private readonly IScreenCaptureService _captureService = new WindowsScreenCaptureService();
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
+    private readonly string? _providedSessionRoot;
     private SessionPaths? _paths;
     private SessionStatusDocument? _status;
     private bool _isCapturing;
@@ -50,18 +51,24 @@ public partial class MainWindow : Window
     private DispatcherTimer? _idleWarningTimer;
 
     public MainWindow()
-        : this(null)
+        : this(null, null, null)
     {
     }
 
     public MainWindow(string? sessionFolder)
-        : this(sessionFolder, null)
+        : this(sessionFolder, null, null)
     {
     }
 
     public MainWindow(string? sessionFolder, TimeSpan? idleTimeout)
+        : this(sessionFolder, null, idleTimeout)
+    {
+    }
+
+    public MainWindow(string? sessionFolder, string? sessionRoot, TimeSpan? idleTimeout)
     {
         _providedSessionFolder = sessionFolder;
+        _providedSessionRoot = sessionRoot;
         _idleTimeout = idleTimeout;
         InitializeComponent();
         Opened += OnOpened;
@@ -115,7 +122,7 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(_providedSessionFolder))
         {
-            _paths = await _store.CreateSessionAsync(null);
+            _paths = await _store.CreateSessionAsync(_providedSessionRoot);
             _status = await _store.ReadStatusAsync(_paths);
             return;
         }

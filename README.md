@@ -68,6 +68,19 @@ Agents should launch AA Annotate through the bundled CLI:
 & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
 ```
 
+To store sessions somewhere other than the OS temp directory, pass a session root:
+
+```powershell
+& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --session-root "D:\AA Annotate Sessions"
+```
+
+Command help:
+
+```powershell
+& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" --help
+& "$env:LOCALAPPDATA\AA.Annotate\app\AA.Annotate.App.exe" --help
+```
+
 When the session completes, the CLI prints:
 
 ```text

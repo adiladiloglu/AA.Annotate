@@ -22,7 +22,10 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
-            desktop.MainWindow = new MainWindow(ReadSessionFolder(args), ReadIdleTimeout(args));
+            desktop.MainWindow = new MainWindow(
+                ReadSessionFolder(args),
+                ReadSessionRoot(args),
+                ReadIdleTimeout(args));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -174,26 +177,34 @@ public partial class App : Application
 
     internal static string? ReadSessionFolder(IReadOnlyList<string> args)
     {
-        for (var index = 0; index < args.Count - 1; index++)
+        return ReadOption(args, "--session");
+    }
+
+    internal static string? ReadSessionRoot(IReadOnlyList<string> args)
+    {
+        return ReadOption(args, "--session-root");
+    }
+
+    internal static TimeSpan? ReadIdleTimeout(IReadOnlyList<string> args)
+    {
+        var value = ReadOption(args, "--idle-timeout-seconds");
+        if (!string.IsNullOrWhiteSpace(value))
         {
-            if (string.Equals(args[index], "--session", StringComparison.OrdinalIgnoreCase))
-            {
-                return args[index + 1];
-            }
+            return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : null;
         }
 
         return null;
     }
 
-    internal static TimeSpan? ReadIdleTimeout(IReadOnlyList<string> args)
+    private static string? ReadOption(IReadOnlyList<string> args, string name)
     {
         for (var index = 0; index < args.Count - 1; index++)
         {
-            if (string.Equals(args[index], "--idle-timeout-seconds", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
             {
-                return double.TryParse(args[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0
-                    ? TimeSpan.FromSeconds(seconds)
-                    : null;
+                return args[index + 1];
             }
         }
 

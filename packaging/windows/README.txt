@@ -21,6 +21,15 @@ environment variables. Agents can run the tool directly with:
 
   & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
 
+Store sessions outside the OS temp directory:
+
+  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --session-root "D:\AA Annotate Sessions"
+
+Show command help:
+
+  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" --help
+  & "$env:LOCALAPPDATA\AA.Annotate\app\AA.Annotate.App.exe" --help
+
 Optional user-scoped registration:
 
   powershell -ExecutionPolicy Bypass -File .\install.ps1 -AddCliToUserPath

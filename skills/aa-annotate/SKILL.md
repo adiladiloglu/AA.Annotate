@@ -15,6 +15,12 @@ Use AA Annotate when the next step depends on the user's visual selection or com
    & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
    ```
 
+   If the user asks to store annotation sessions in a specific folder, add:
+
+   ```powershell
+   --session-root "<folder>"
+   ```
+
    If the repo-local Windows publish output is available, run:
 
    ```powershell
@@ -57,6 +63,7 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 - Do not continue as if annotations exist when `SESSION_STATUS` is `cancelled` or `error`; tell the user the session did not complete.
 - Do not default to `session.json` or other private local state. Use `review.md` first, then `annotations.json` if structured data is required.
 - Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. This one-minute inactivity period is the recommended agent workflow.
+- Pass `--session-root <folder>` when the user wants session files stored somewhere other than the default OS temp location.
 - If `--timeout-seconds` is omitted, the CLI uses a ten-minute inactivity period. The app resets the timer when the user interacts with it and shows a finite warning before closing an inactive session.
 - If the installed CLI path does not exist, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the bundled executable.
 - If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.
