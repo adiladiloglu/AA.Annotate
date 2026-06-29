@@ -1,0 +1,106 @@
+# Visual Studio / .NET
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+*.vcxproj.filters
+*.dbmdl
+*.bak
+*.cache
+*.ilk
+*.log
+*.pdb
+*.obj
+*.exe
+*.dll
+*.apk
+*.xap
+*.appx
+*.appxbundle
+*.msi
+*.nupkg
+*.snk
+
+# Build directories
+[Bb]in/
+[Oo]bj/
+**/[Bb]in/
+**/[Oo]bj/
+
+# Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# AI stuff
+.agents/
+.codex/
+
+# Visual Studio
+.vs/
+
+# User-specific files
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Package directories
+packages/
+
+# NuGet
+*.nupkg
+project.lock.json
+
+# Generated NuGet files
+*.nuget.props
+*.nuget.targets
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Non-essential project artifacts
+artifacts/
+mockups/
+superpowers/
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+
+# Temporary files
+*~
+*.tmp
+*.temp
+
+# MSBuild generated files
+*.csproj.user
+*.dbmdl
+
+# Documentation output
+*.html
+*.pdf
+
+# Mono
+*.pidb
+*.userprefs
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Open XML package temporary files
+~$*

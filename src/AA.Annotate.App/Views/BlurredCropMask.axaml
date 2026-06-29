@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AA.Annotate.App.Views.BlurredCropMask"
+             IsHitTestVisible="False">
+  <Canvas Name="MaskCanvas" Background="Transparent">
+    <Border Name="TopRegion" ClipToBounds="True" Background="#22000000">
+      <Canvas>
+        <Image Name="TopImage" Stretch="Fill" />
+      </Canvas>
+    </Border>
+    <Border Name="LeftRegion" ClipToBounds="True" Background="#22000000">
+      <Canvas>
+        <Image Name="LeftImage" Stretch="Fill" />
+      </Canvas>
+    </Border>
+    <Border Name="RightRegion" ClipToBounds="True" Background="#22000000">
+      <Canvas>
+        <Image Name="RightImage" Stretch="Fill" />
+      </Canvas>
+    </Border>
+    <Border Name="BottomRegion" ClipToBounds="True" Background="#22000000">
+      <Canvas>
+        <Image Name="BottomImage" Stretch="Fill" />
+      </Canvas>
+    </Border>
+  </Canvas>
+</UserControl>

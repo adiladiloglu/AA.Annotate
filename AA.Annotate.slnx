@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AA.Annotate.App/AA.Annotate.App.csproj" />
+    <Project Path="src/AA.Annotate.Cli/AA.Annotate.Cli.csproj" />
+    <Project Path="src/AA.Annotate.Core/AA.Annotate.Core.csproj" />
+    <Project Path="src/AA.Annotate.Platform.Windows/AA.Annotate.Platform.Windows.csproj" />
+    <Project Path="src/AA.Annotate.Platform/AA.Annotate.Platform.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AA.Annotate.App.Tests/AA.Annotate.App.Tests.csproj" />
+    <Project Path="tests/AA.Annotate.Cli.Tests/AA.Annotate.Cli.Tests.csproj" />
+    <Project Path="tests/AA.Annotate.Core.Tests/AA.Annotate.Core.Tests.csproj" />
+  </Folder>
+</Solution>

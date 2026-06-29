@@ -1,0 +1,74 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Button.iconButton">
+    <Setter Property="Background" Value="#22FFFFFF" />
+    <Setter Property="BorderBrush" Value="#40FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Button.iconButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource OverlayHoverBrush}" />
+    <Setter Property="Foreground" Value="#1F2937" />
+  </Style>
+  <Style Selector="Button.activeIconButton">
+    <Setter Property="Background" Value="{DynamicResource OverlayActiveBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="10,0" />
+  </Style>
+  <Style Selector="Button.captureActionButton">
+    <Setter Property="Background" Value="#332C3440" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Button.captureActionButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource OverlayHoverBrush}" />
+    <Setter Property="Foreground" Value="#1F2937" />
+  </Style>
+  <Style Selector="Button.confirmButton">
+    <Setter Property="Background" Value="{DynamicResource ConfirmBrush}" />
+    <Setter Property="BorderBrush" Value="#72FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Border.commentTextHost">
+    <Setter Property="Background" Value="{DynamicResource TextInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Border.commentTextHost.focused">
+    <Setter Property="Background" Value="{DynamicResource OverlayActiveBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayHoverBrush}" />
+  </Style>
+  <Style Selector="TextBox.commentTextBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Padding" Value="10,7" />
+  </Style>
+  <Style Selector="TextBox.commentTextBox:focus">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+</Styles>

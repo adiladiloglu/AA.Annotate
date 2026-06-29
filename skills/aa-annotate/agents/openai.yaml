@@ -1,0 +1,4 @@
+interface:
+  display_name: "AA Annotate"
+  short_description: "Collect visual annotations from the user"
+  default_prompt: "Use $aa-annotate to ask the user for visual annotations before continuing."

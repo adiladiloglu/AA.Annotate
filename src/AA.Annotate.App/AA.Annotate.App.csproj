@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AA.Annotate.Core\AA.Annotate.Core.csproj" />
+    <ProjectReference Include="..\AA.Annotate.Platform\AA.Annotate.Platform.csproj" />
+    <ProjectReference Include="..\AA.Annotate.Platform.Windows\AA.Annotate.Platform.Windows.csproj" />
+  </ItemGroup>
+</Project>

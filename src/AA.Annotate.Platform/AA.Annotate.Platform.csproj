@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\AA.Annotate.Core\AA.Annotate.Core.csproj" />
+  </ItemGroup>
+</Project>

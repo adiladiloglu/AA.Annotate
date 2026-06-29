@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AA.Annotate.App.Views.AnnotationBoxControl">
+  <Canvas Background="Transparent">
+    <Border Name="BoxBorder"
+            BorderBrush="{StaticResource AnnotationStrokeBrush}"
+            BorderThickness="2"
+            Background="{StaticResource AnnotationBrush}" />
+    <Border Name="NumberBadge"
+            Width="22"
+            Height="22"
+            CornerRadius="4"
+            Background="{StaticResource AnnotationStrokeBrush}">
+      <TextBlock Name="NumberText"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 FontSize="13"
+                 FontWeight="SemiBold"
+                 Foreground="White" />
+    </Border>
+    <Border Name="ResizeHandle"
+            Width="12"
+            Height="12"
+            CornerRadius="6"
+            Background="{StaticResource AnnotationStrokeBrush}" />
+  </Canvas>
+</UserControl>

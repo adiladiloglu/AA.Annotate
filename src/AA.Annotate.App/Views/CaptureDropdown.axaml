@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AA.Annotate.App.Views.CaptureDropdown"
+             Width="148">
+  <StackPanel Spacing="6">
+    <StackPanel Name="CaptureList" Spacing="6" />
+    <Button Name="NewCaptureButton"
+            Width="36"
+            Height="36"
+            Classes="captureActionButton"
+            HorizontalAlignment="Left"
+            HorizontalContentAlignment="Center"
+            ToolTip.Tip="New capture">
+      <PathIcon Width="20"
+                Height="20"
+                VerticalAlignment="Center"
+                Data="M9,4 L15,4 L16.8,6 L20,6 C21.1,6 22,6.9 22,8 L22,19 C22,20.1 21.1,21 20,21 L4,21 C2.9,21 2,20.1 2,19 L2,8 C2,6.9 2.9,6 4,6 L7.2,6 Z M12,9 C9.2,9 7,11.2 7,14 C7,16.8 9.2,19 12,19 C14.8,19 17,16.8 17,14 C17,11.2 14.8,9 12,9 Z M12,11 C13.7,11 15,12.3 15,14 C15,15.7 13.7,17 12,17 C10.3,17 9,15.7 9,14 C9,12.3 10.3,11 12,11 Z" />
+    </Button>
+  </StackPanel>
+</UserControl>

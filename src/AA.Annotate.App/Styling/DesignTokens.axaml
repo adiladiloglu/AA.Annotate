@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
+  <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
+  <CornerRadius x:Key="RadiusLarge">14</CornerRadius>
+  <Color x:Key="OverlayRestColor">#59717A86</Color>
+  <Color x:Key="OverlayHoverColor">#DCEFF4FF</Color>
+  <Color x:Key="OverlayActiveColor">#D42C3440</Color>
+  <Color x:Key="SystemAccentColor">#DCEFF4FF</Color>
+  <Color x:Key="SystemAccentColorDark1">#B9D8E5F2</Color>
+  <Color x:Key="SystemAccentColorDark2">#96B8C7D4</Color>
+  <Color x:Key="SystemAccentColorDark3">#738C99A6</Color>
+  <Color x:Key="SystemAccentColorLight1">#EAF7FBFF</Color>
+  <Color x:Key="SystemAccentColorLight2">#DCEFF4FF</Color>
+  <Color x:Key="SystemAccentColorLight3">#C8E2EBF6</Color>
+  <Color x:Key="ConfirmColor">#2FBC64</Color>
+  <Color x:Key="AnnotationColor">#F6A609</Color>
+  <Color x:Key="CropColor">#2D72D9</Color>
+  <SolidColorBrush x:Key="OverlayRestBrush" Color="{StaticResource OverlayRestColor}" />
+  <SolidColorBrush x:Key="OverlayHoverBrush" Color="{StaticResource OverlayHoverColor}" />
+  <SolidColorBrush x:Key="OverlayActiveBrush" Color="{StaticResource OverlayActiveColor}" />
+  <SolidColorBrush x:Key="OverlayBorderBrush" Color="#72FFFFFF" />
+  <SolidColorBrush x:Key="ConfirmBrush" Color="{StaticResource ConfirmColor}" />
+  <SolidColorBrush x:Key="AnnotationBrush" Color="{StaticResource AnnotationColor}" Opacity="0.32" />
+  <SolidColorBrush x:Key="AnnotationStrokeBrush" Color="{StaticResource AnnotationColor}" Opacity="0.72" />
+  <SolidColorBrush x:Key="CropBrush" Color="{StaticResource CropColor}" Opacity="0.56" />
+  <SolidColorBrush x:Key="CommentEditorBrush" Color="#D42C3440" />
+  <SolidColorBrush x:Key="TextInputBrush" Color="#8F111827" />
+
+</ResourceDictionary>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AA.Annotate.Core\AA.Annotate.Core.csproj" />
+    <ProjectReference Include="..\AA.Annotate.Platform\AA.Annotate.Platform.csproj" />
+  </ItemGroup>
+</Project>

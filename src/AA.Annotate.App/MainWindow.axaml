@@ -1,0 +1,29 @@
+<Window
+    x:Class="AA.Annotate.App.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="clr-namespace:AA.Annotate.App.Views"
+    Width="960"
+    Height="540"
+    Title="AA Annotate"
+    Background="Transparent"
+    CanResize="False"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaChromeHints="NoChrome"
+    ExtendClientAreaTitleBarHeightHint="-1"
+    SystemDecorations="None"
+    TransparencyLevelHint="Transparent"
+    Topmost="True">
+  <Grid Name="RootGrid" Background="Transparent">
+    <views:ScreenshotSurface Name="ScreenshotSurface" />
+    <views:BlurredCropMask Name="BlurredCropMask" IsVisible="False" />
+    <Canvas Name="AnnotationCanvas" Background="Transparent" />
+    <views:CropOverlay Name="CropOverlay" IsVisible="False" />
+    <Canvas Name="ChromeCanvas">
+      <views:FloatingCommandBar Name="CommandBar" Canvas.Left="24" Canvas.Top="24" />
+      <views:DisplayDropdown Name="DisplayDropdown" Canvas.Left="24" Canvas.Top="82" IsVisible="False" />
+      <views:CaptureDropdown Name="CaptureDropdown" Canvas.Left="118" Canvas.Top="82" IsVisible="False" />
+      <views:CommentEditor Name="CommentEditor" Canvas.Left="180" Canvas.Top="180" IsVisible="False" />
+    </Canvas>
+  </Grid>
+</Window>
