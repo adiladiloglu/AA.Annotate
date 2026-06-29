@@ -7,6 +7,8 @@ namespace AA.Annotate.Cli;
 
 public sealed class SessionCommand
 {
+    private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan WaiterSafetyBuffer = TimeSpan.FromSeconds(15);
     private readonly TextWriter _output;
     private readonly SessionStore _store;
     private readonly AppLauncher _launcher;
@@ -24,7 +26,7 @@ public sealed class SessionCommand
     {
         if (args.Count == 0 || args[0] != "session")
         {
-            await _output.WriteLineAsync("Usage: aa-annotate session --wait [--output <folder>] [--timeout-seconds <seconds>]");
+            await _output.WriteLineAsync("Usage: aa-annotate session --wait [--output <folder>] [--timeout-seconds <inactivity seconds>]");
             return 2;
         }
 
@@ -40,7 +42,7 @@ public sealed class SessionCommand
         {
             var appExecutable = _launcher.ResolveExecutablePath();
             await _output.WriteLineAsync($"APP_EXE={appExecutable}");
-            launchedProcess = _launcher.Launch(paths.SessionFolder);
+            launchedProcess = _launcher.Launch(paths.SessionFolder, timeout);
             await _output.WriteLineAsync($"APP_PROCESS_ID={launchedProcess.Id}");
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or FileNotFoundException)
@@ -56,7 +58,7 @@ public sealed class SessionCommand
             return 0;
         }
 
-        var status = await _waiter.WaitAsync(paths, timeout, launchedProcess, cancellationToken);
+        var status = await _waiter.WaitAsync(paths, timeout + IdleWarningDuration + WaiterSafetyBuffer, launchedProcess, cancellationToken);
         await _output.WriteLineAsync($"SESSION_STATUS={status.Status.ToString().ToLowerInvariant()}");
         if (status.Status == SessionStatus.Completed)
         {

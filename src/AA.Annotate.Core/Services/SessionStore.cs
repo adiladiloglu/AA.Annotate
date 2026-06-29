@@ -35,7 +35,10 @@ public sealed class SessionStore
             CancelledAtUtc: null,
             ReviewPath: null,
             AnnotationsPath: null,
-            ErrorMessage: null);
+            ErrorMessage: null)
+        {
+            LastActivityAtUtc = now
+        };
 
         await WriteJsonAtomicAsync(paths.StatusJsonPath, status, cancellationToken);
         return paths;
@@ -82,6 +85,21 @@ public sealed class SessionStore
             ErrorMessage = errorMessage
         };
         await WriteJsonAtomicAsync(paths.StatusJsonPath, error, cancellationToken);
+    }
+
+    public async Task TouchActivityAsync(SessionPaths paths, CancellationToken cancellationToken = default)
+    {
+        var current = await ReadStatusAsync(paths, cancellationToken);
+        if (current.Status is SessionStatus.Completed or SessionStatus.Cancelled or SessionStatus.Error)
+        {
+            return;
+        }
+
+        var active = current with
+        {
+            LastActivityAtUtc = _clock()
+        };
+        await WriteJsonAtomicAsync(paths.StatusJsonPath, active, cancellationToken);
     }
 
     public async Task<SessionStatusDocument> ReadStatusAsync(SessionPaths paths, CancellationToken cancellationToken = default)

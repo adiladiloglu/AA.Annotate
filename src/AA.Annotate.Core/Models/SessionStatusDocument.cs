@@ -8,4 +8,7 @@ public sealed record SessionStatusDocument(
     DateTimeOffset? CancelledAtUtc,
     string? ReviewPath,
     string? AnnotationsPath,
-    string? ErrorMessage);
+    string? ErrorMessage)
+{
+    public DateTimeOffset? LastActivityAtUtc { get; init; }
+}

@@ -11,7 +11,9 @@ using AA.Annotate.Platform.Windows;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using DrawingBitmap = System.Drawing.Bitmap;
 using DrawingGraphics = System.Drawing.Graphics;
 using DrawingGraphicsUnit = System.Drawing.GraphicsUnit;
@@ -22,11 +24,14 @@ namespace AA.Annotate.App;
 public partial class MainWindow : Window
 {
     private const int MinimumAnnotationSize = 12;
+    private static readonly TimeSpan ActivityWriteInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
     private readonly AnnotationSessionViewModel _session = new();
     private readonly SessionStore _store = new();
     private readonly SessionExporter _exporter = new();
     private readonly IDisplayCatalog _displayCatalog = new WindowsDisplayCatalog();
     private readonly IScreenCaptureService _captureService = new WindowsScreenCaptureService();
+    private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
     private SessionPaths? _paths;
     private SessionStatusDocument? _status;
@@ -38,6 +43,11 @@ public partial class MainWindow : Window
     private Point _drawStart;
     private Border? _draftBox;
     private AnnotationViewModel? _commentTarget;
+    private DateTimeOffset _lastActivityWriteUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastUserActivityUtc = DateTimeOffset.UtcNow;
+    private DateTimeOffset _idleWarningExpiresAtUtc;
+    private DispatcherTimer? _idleTimer;
+    private DispatcherTimer? _idleWarningTimer;
 
     public MainWindow()
         : this(null)
@@ -45,8 +55,14 @@ public partial class MainWindow : Window
     }
 
     public MainWindow(string? sessionFolder)
+        : this(sessionFolder, null)
+    {
+    }
+
+    public MainWindow(string? sessionFolder, TimeSpan? idleTimeout)
     {
         _providedSessionFolder = sessionFolder;
+        _idleTimeout = idleTimeout;
         InitializeComponent();
         Opened += OnOpened;
         Closing += OnClosing;
@@ -66,6 +82,14 @@ public partial class MainWindow : Window
         CommentEditor.DeleteRequested += (_, _) => DeleteCommentTarget();
         CommentEditor.SaveRequested += (_, text) => SaveCommentTarget(text);
         CropOverlay.CropChanged += (_, crop) => BlurredCropMask.SetCrop(crop);
+        IdleWarningContinueButton.Click += (_, _) => ContinueAfterIdleWarning();
+        IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
+        IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
+        AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyDownEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -73,6 +97,7 @@ public partial class MainWindow : Window
         SuppressNativeWindowBorder();
         PlaceOnPrimaryDisplay();
         await EnsureSessionAsync();
+        ResetIdleTimer();
         UpdateChrome();
     }
 
@@ -112,10 +137,133 @@ public partial class MainWindow : Window
             CancelledAtUtc: null,
             ReviewPath: null,
             AnnotationsPath: null,
-            ErrorMessage: null);
+            ErrorMessage: null)
+        {
+            LastActivityAtUtc = now
+        };
         await using var stream = File.Create(paths.StatusJsonPath);
         await JsonSerializer.SerializeAsync(stream, status, SessionJsonOptions.Create());
         return status;
+    }
+
+    private void OnUserActivity(object? sender, RoutedEventArgs e)
+    {
+        if (!IdleWarningOverlay.IsVisible)
+        {
+            ResetIdleTimer();
+        }
+
+        _ = TouchActivityAsync();
+    }
+
+    private async Task TouchActivityAsync()
+    {
+        if (_paths is null || _hasTerminalStatus)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (now - _lastActivityWriteUtc < ActivityWriteInterval)
+        {
+            return;
+        }
+
+        _lastActivityWriteUtc = now;
+        try
+        {
+            await _store.TouchActivityAsync(_paths);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+        }
+    }
+
+    private void ResetIdleTimer()
+    {
+        if (_idleTimeout is null || _hasTerminalStatus)
+        {
+            return;
+        }
+
+        _lastUserActivityUtc = DateTimeOffset.UtcNow;
+        _idleTimer ??= new DispatcherTimer { Interval = _idleTimeout.Value };
+        _idleTimer.Stop();
+        _idleTimer.Interval = _idleTimeout.Value;
+        _idleTimer.Tick -= OnIdleTimerTick;
+        _idleTimer.Tick += OnIdleTimerTick;
+        _idleTimer.Start();
+    }
+
+    private void OnIdleTimerTick(object? sender, EventArgs e)
+    {
+        _idleTimer?.Stop();
+        if (_hasTerminalStatus || IdleWarningOverlay.IsVisible)
+        {
+            return;
+        }
+
+        var idleFor = DateTimeOffset.UtcNow - _lastUserActivityUtc;
+        if (_idleTimeout is { } timeout && idleFor < timeout)
+        {
+            ResetIdleTimer();
+            return;
+        }
+
+        ShowIdleWarning();
+    }
+
+    private void ShowIdleWarning()
+    {
+        IdleWarningOverlay.IsVisible = true;
+        IdleWarningSendButton.IsVisible = HasAnyAnnotations();
+        IdleWarningMessageText.Text = HasAnyAnnotations()
+            ? "Send the current annotations now, discard them, or continue working."
+            : "Continue working or discard this inactive session.";
+        if (_activeDisplay is { } display)
+        {
+            SetActiveDisplay(display, fullscreen: true);
+        }
+
+        _idleWarningExpiresAtUtc = DateTimeOffset.UtcNow + IdleWarningDuration;
+        _idleWarningTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _idleWarningTimer.Stop();
+        _idleWarningTimer.Tick -= OnIdleWarningTimerTick;
+        _idleWarningTimer.Tick += OnIdleWarningTimerTick;
+        _idleWarningTimer.Start();
+        UpdateIdleWarningCountdown();
+    }
+
+    private void ContinueAfterIdleWarning()
+    {
+        _idleWarningTimer?.Stop();
+        IdleWarningOverlay.IsVisible = false;
+        ResetIdleTimer();
+        ApplyCurrentWindowMode();
+        _ = TouchActivityAsync();
+    }
+
+    private async void OnIdleWarningTimerTick(object? sender, EventArgs e)
+    {
+        if (DateTimeOffset.UtcNow < _idleWarningExpiresAtUtc)
+        {
+            UpdateIdleWarningCountdown();
+            return;
+        }
+
+        _idleWarningTimer?.Stop();
+        await CancelAsync();
+    }
+
+    private void UpdateIdleWarningCountdown()
+    {
+        var remaining = Math.Max(0, (int)Math.Ceiling((_idleWarningExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds));
+        IdleWarningCountdownText.Text = $"Closing without annotations in {remaining} seconds.";
+    }
+
+    private bool HasAnyAnnotations()
+    {
+        return _session.Captures.Any(capture => capture.Annotations.Count > 0);
     }
 
     private void PlaceOnPrimaryDisplay()
@@ -290,7 +438,7 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible,
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible,
             HasActiveCrop());
     }
 
@@ -654,6 +802,8 @@ public partial class MainWindow : Window
         }
 
         StoreCurrentCrop();
+        StoreActiveComment();
+        StopIdleTimers();
         var session = BuildExportSession();
         await _exporter.ExportAsync(_paths, session);
         await _store.MarkCompletedAsync(_paths, "review.md", "annotations.json");
@@ -663,6 +813,7 @@ public partial class MainWindow : Window
 
     private async Task CancelAsync()
     {
+        StopIdleTimers();
         if (_paths is not null)
         {
             await _store.MarkCancelledAsync(_paths);
@@ -679,8 +830,23 @@ public partial class MainWindow : Window
             return;
         }
 
+        StopIdleTimers();
         _hasTerminalStatus = true;
         await _store.MarkCancelledAsync(_paths);
+    }
+
+    private void StopIdleTimers()
+    {
+        _idleTimer?.Stop();
+        _idleWarningTimer?.Stop();
+    }
+
+    private void StoreActiveComment()
+    {
+        if (_commentTarget is not null && CommentEditor.IsVisible)
+        {
+            _commentTarget.Comment = CommentEditor.CurrentText.Trim();
+        }
     }
 
     private AnnotationSession BuildExportSession()

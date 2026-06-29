@@ -10,6 +10,8 @@ public partial class CommentEditor : UserControl
 
     public event EventHandler<string>? SaveRequested;
 
+    public string CurrentText => CommentTextBox.Text ?? string.Empty;
+
     public CommentEditor()
     {
         InitializeComponent();

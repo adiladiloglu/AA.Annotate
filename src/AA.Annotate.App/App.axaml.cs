@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
+using System.Globalization;
 
 namespace AA.Annotate.App;
 
@@ -20,7 +21,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow(ReadSessionFolder(desktop.Args ?? []));
+            var args = desktop.Args ?? [];
+            desktop.MainWindow = new MainWindow(ReadSessionFolder(args), ReadIdleTimeout(args));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -170,13 +172,28 @@ public partial class App : Application
         return new SolidColorBrush(Color.Parse(color));
     }
 
-    private static string? ReadSessionFolder(IReadOnlyList<string> args)
+    internal static string? ReadSessionFolder(IReadOnlyList<string> args)
     {
         for (var index = 0; index < args.Count - 1; index++)
         {
             if (string.Equals(args[index], "--session", StringComparison.OrdinalIgnoreCase))
             {
                 return args[index + 1];
+            }
+        }
+
+        return null;
+    }
+
+    internal static TimeSpan? ReadIdleTimeout(IReadOnlyList<string> args)
+    {
+        for (var index = 0; index < args.Count - 1; index++)
+        {
+            if (string.Equals(args[index], "--idle-timeout-seconds", StringComparison.OrdinalIgnoreCase))
+            {
+                return double.TryParse(args[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+                    ? TimeSpan.FromSeconds(seconds)
+                    : null;
             }
         }
 

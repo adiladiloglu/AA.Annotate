@@ -23,6 +23,7 @@ public sealed class SessionStoreTests
             SessionJsonOptions.Create());
 
         Assert.Equal(SessionStatus.Waiting, status!.Status);
+        Assert.Equal(DateTimeOffset.Parse("2026-06-28T15:55:00Z"), status.LastActivityAtUtc);
     }
 
     [Fact]
@@ -58,6 +59,25 @@ public sealed class SessionStoreTests
 
         Assert.Equal(SessionStatus.Error, status!.Status);
         Assert.Equal("app exited", status.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task TouchActivityUpdatesWaitingSessionActivity()
+    {
+        var root = CreateTempDirectory();
+        var now = DateTimeOffset.Parse("2026-06-28T15:55:00Z");
+        var store = new SessionStore(() => now);
+        var paths = await store.CreateSessionAsync(root);
+        now = now.AddMinutes(3);
+
+        await store.TouchActivityAsync(paths);
+
+        var status = JsonSerializer.Deserialize<SessionStatusDocument>(
+            await File.ReadAllTextAsync(paths.StatusJsonPath),
+            SessionJsonOptions.Create());
+
+        Assert.Equal(SessionStatus.Waiting, status!.Status);
+        Assert.Equal(now, status.LastActivityAtUtc);
     }
 
     private static string CreateTempDirectory()

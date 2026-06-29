@@ -29,6 +29,21 @@ public sealed class SessionCommandTests
         Assert.Contains("ERROR_MESSAGE=simulated launch failure", output.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RunPassesTimeoutToAppLauncher()
+    {
+        var output = new StringWriter();
+        var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
+        var launcher = new RecordingLauncher();
+        var command = new SessionCommand(output, store, launcher);
+        var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
+
+        var exitCode = await command.RunAsync(["session", "--output", root, "--timeout-seconds", "60"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(TimeSpan.FromSeconds(60), launcher.IdleTimeout);
+    }
+
     private sealed class ThrowingLauncher(string message) : AppLauncher
     {
         public override string ResolveExecutablePath()
@@ -36,9 +51,25 @@ public sealed class SessionCommandTests
             return @"C:\Missing\AA.Annotate.App.exe";
         }
 
-        public override Process Launch(string sessionFolder)
+        public override Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
         {
             throw new FileNotFoundException(message);
+        }
+    }
+
+    private sealed class RecordingLauncher : AppLauncher
+    {
+        public TimeSpan? IdleTimeout { get; private set; }
+
+        public override string ResolveExecutablePath()
+        {
+            return @"C:\Tools\AA.Annotate.App.exe";
+        }
+
+        public override Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
+        {
+            IdleTimeout = idleTimeout;
+            return Process.GetCurrentProcess();
         }
     }
 }

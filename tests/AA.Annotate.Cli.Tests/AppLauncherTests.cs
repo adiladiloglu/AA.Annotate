@@ -62,4 +62,19 @@ public sealed class AppLauncherTests
 
         Assert.Contains("AA_ANNOTATE_APP", exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void CreateStartInfoIncludesIdleTimeoutWhenProvided()
+    {
+        var startInfo = AppLauncher.CreateStartInfo(
+            @"C:\Tools\AA.Annotate.App.exe",
+            @"C:\Temp\AA.Annotate\sessions\1",
+            TimeSpan.FromSeconds(60));
+
+        Assert.Equal(@"C:\Tools\AA.Annotate.App.exe", startInfo.FileName);
+        Assert.True(startInfo.UseShellExecute);
+        Assert.Equal(
+            ["--session", @"C:\Temp\AA.Annotate\sessions\1", "--idle-timeout-seconds", "60"],
+            startInfo.ArgumentList);
+    }
 }

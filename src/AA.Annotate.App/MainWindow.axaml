@@ -25,5 +25,52 @@
       <views:CaptureDropdown Name="CaptureDropdown" Canvas.Left="118" Canvas.Top="82" IsVisible="False" />
       <views:CommentEditor Name="CommentEditor" Canvas.Left="180" Canvas.Top="180" IsVisible="False" />
     </Canvas>
+    <Grid Name="IdleWarningOverlay"
+          IsVisible="False"
+          Background="#A0000000">
+      <Border HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="420"
+              Padding="18"
+              Background="{StaticResource OverlayActiveBrush}"
+              BorderBrush="{StaticResource OverlayBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="10">
+        <StackPanel Spacing="14">
+          <TextBlock Name="IdleWarningTitleText"
+                     Text="Annotation session is idle"
+                     Foreground="White"
+                     FontSize="18"
+                     FontWeight="SemiBold" />
+          <TextBlock Name="IdleWarningMessageText"
+                     Foreground="#EAF7FBFF"
+                     FontSize="13"
+                     TextWrapping="Wrap" />
+          <TextBlock Name="IdleWarningCountdownText"
+                     Foreground="#EAF7FBFF"
+                     FontSize="13"
+                     FontWeight="SemiBold" />
+          <StackPanel Orientation="Horizontal"
+                      HorizontalAlignment="Right"
+                      Spacing="8">
+            <Button Name="IdleWarningContinueButton"
+                    Classes="activeIconButton"
+                    MinWidth="92"
+                    Height="36"
+                    Content="Continue" />
+            <Button Name="IdleWarningDiscardButton"
+                    Classes="iconButton"
+                    MinWidth="92"
+                    Height="36"
+                    Content="Discard" />
+            <Button Name="IdleWarningSendButton"
+                    Classes="confirmButton"
+                    MinWidth="92"
+                    Height="36"
+                    Content="Send" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
   </Grid>
 </Window>
