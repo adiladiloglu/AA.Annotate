@@ -90,14 +90,6 @@ Create a Windows package:
 powershell -ExecutionPolicy Bypass -File .\scripts\package-win.ps1 -Version 0.1.0
 ```
 
-Publish a GitHub Release from an authenticated checkout:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\publish-github-release.ps1 -Version 0.1.0
-```
-
-Pushing a tag such as `v0.1.0` also runs the GitHub Actions release workflow.
-
 ## Distribution
 
 Current release format:
