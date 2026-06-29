@@ -45,8 +45,21 @@ jobs:
             $notes = "docs\release-notes\v0.1.0.md"
           }
 
-          gh release create $tag $asset `
-            --repo '${{ github.repository }}' `
-            --title "AA Annotate $tag" `
-            --notes-file $notes `
-            --verify-tag
+          $previousErrorActionPreference = $ErrorActionPreference
+          $ErrorActionPreference = 'Continue'
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+          $ErrorActionPreference = $previousErrorActionPreference
+
+          if ($releaseExists) {
+            gh release upload $tag $asset `
+              --repo '${{ github.repository }}' `
+              --clobber
+          }
+          else {
+            gh release create $tag $asset `
+              --repo '${{ github.repository }}' `
+              --title "AA Annotate $tag" `
+              --notes-file $notes `
+              --verify-tag
+          }
