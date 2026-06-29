@@ -1,8 +1,8 @@
 # AA Annotate
 
-AA Annotate is a Windows screenshot annotation tool for AI agents.
+AA Annotate is a Windows screenshot annotation tool used by AI agents when they need visual feedback from the user.
 
-An agent opens an annotation session, waits while the user marks the screen, then continues from the generated `review.md` handoff.
+The agent opens the overlay. The user captures, crops, marks, comments, and sends the result back.
 
 ## Platform
 
@@ -38,68 +38,23 @@ Uninstall:
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-## Agent Command
+## How It Works
 
-Preferred command when the CLI is on `PATH`:
+AA Annotate is not meant to be started manually during normal use. An AI agent starts it when screen context is needed.
 
-```powershell
-aa-annotate session --wait
-```
-
-Default installed path when `PATH` was not changed:
-
-```powershell
-& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
-```
-
-From source:
-
-```powershell
-dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait
-```
-
-Successful sessions print:
-
-```text
-SESSION_STATUS=completed
-REVIEW_MD=<session folder>\review.md
-ANNOTATIONS_JSON=<session folder>\annotations.json
-```
-
-Agents should read `REVIEW_MD` first. Use `ANNOTATIONS_JSON` only when exact coordinates or structured metadata are needed.
-
-## Session Model
-
-AA Annotate stores session files under the OS temp directory by default.
-
-Typical files:
-
-```text
-review.md
-annotations.json
-session.json
-captures/
-```
-
-Each annotation contains:
-
-```text
-Box number
-Box coordinates on the screenshot
-Annotation text
-```
-
-One session can include multiple captures for different windows, tabs, displays, or application states.
+The app stores capture and annotation files under the OS temp directory by default, so it does not clutter the current workspace.
 
 ## User Interaction
 
-The user works only inside the annotation overlay opened by the agent:
+When the overlay opens:
 
 1. Capture the relevant screen.
 2. Crop the capture when only part of the screen matters.
 3. Draw numbered annotation boxes.
 4. Add comments.
 5. Send the session back to the waiting agent.
+
+One session can include multiple captures for different windows, tabs, displays, or application states.
 
 ## Codex Skill
 
@@ -110,6 +65,8 @@ The package installs a Codex skill at:
 ```
 
 The skill defines when to launch AA Annotate, how to wait for completion, and which output file to read.
+
+Agent-facing command and output details are documented in [skills/aa-annotate/SKILL.md](skills/aa-annotate/SKILL.md).
 
 ## Development
 
