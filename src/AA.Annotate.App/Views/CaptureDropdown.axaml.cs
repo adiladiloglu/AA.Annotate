@@ -7,8 +7,11 @@ namespace AA.Annotate.App.Views;
 public partial class CaptureDropdown : UserControl
 {
     private readonly Dictionary<Button, CaptureViewModel> _items = [];
+    private readonly Dictionary<Button, CaptureViewModel> _deleteItems = [];
 
     public event EventHandler<CaptureViewModel>? CaptureSelected;
+
+    public event EventHandler<CaptureViewModel>? CaptureDeleteRequested;
 
     public event EventHandler? NewCaptureRequested;
 
@@ -22,6 +25,7 @@ public partial class CaptureDropdown : UserControl
     {
         CaptureList.Children.Clear();
         _items.Clear();
+        _deleteItems.Clear();
 
         foreach (var capture in captures)
         {
@@ -41,7 +45,40 @@ public partial class CaptureDropdown : UserControl
 
             _items[button] = capture;
             button.Click += OnCaptureClicked;
-            CaptureList.Children.Add(button);
+
+            var deleteButton = new Button
+            {
+                Width = 36,
+                Height = 52,
+                Padding = new Avalonia.Thickness(0),
+                Classes = { "iconButton" },
+                Content = new PathIcon
+                {
+                    Width = 18,
+                    Height = 18,
+                    Data = Avalonia.Media.Geometry.Parse("M8,4 L16,4 L16,6 L21,6 L21,8 L19,8 L18,21 C17.9,22.1 17.1,23 16,23 L8,23 C6.9,23 6.1,22.1 6,21 L5,8 L3,8 L3,6 L8,6 Z M8,8 L8.9,21 L15.1,21 L16,8 Z M10,10 L12,10 L12,19 L10,19 Z M14,10 L16,10 L16,19 L14,19 Z")
+                }
+            };
+            ToolTip.SetTip(deleteButton, "Remove capture");
+            _deleteItems[deleteButton] = capture;
+            deleteButton.Click += OnCaptureDeleteClicked;
+
+            CaptureList.Children.Add(new Grid
+            {
+                Width = 190,
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(GridLength.Auto),
+                    new ColumnDefinition(GridLength.Auto)
+                },
+                ColumnSpacing = 6,
+                Children =
+                {
+                    button,
+                    deleteButton
+                }
+            });
+            Grid.SetColumn(deleteButton, 1);
         }
     }
 
@@ -87,6 +124,14 @@ public partial class CaptureDropdown : UserControl
         if (sender is Button button && _items.TryGetValue(button, out var capture))
         {
             CaptureSelected?.Invoke(this, capture);
+        }
+    }
+
+    private void OnCaptureDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && _deleteItems.TryGetValue(button, out var capture))
+        {
+            CaptureDeleteRequested?.Invoke(this, capture);
         }
     }
 }

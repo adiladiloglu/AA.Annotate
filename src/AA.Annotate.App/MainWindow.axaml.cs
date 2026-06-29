@@ -78,6 +78,7 @@ public partial class MainWindow : Window
         CommandBar.CancelRequested += async (_, _) => await CancelAsync();
         DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
         CaptureDropdown.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
+        CaptureDropdown.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
         CaptureDropdown.NewCaptureRequested += async (_, _) => await CaptureAsync();
         CommentEditor.DeleteRequested += (_, _) => DeleteCommentTarget();
         CommentEditor.SaveRequested += (_, text) => SaveCommentTarget(text);
@@ -549,6 +550,87 @@ public partial class MainWindow : Window
 
         SelectCapture(capture);
         SetAnnotationMode(true);
+    }
+
+    private void DeleteCapture(CaptureViewModel capture)
+    {
+        var removedIndex = _session.Captures.IndexOf(capture);
+        if (removedIndex < 0)
+        {
+            return;
+        }
+
+        var countBeforeRemoval = _session.Captures.Count;
+        var wasCurrent = _session.CurrentCapture == capture;
+        _session.Captures.RemoveAt(removedIndex);
+        TryDeleteCaptureFiles(capture);
+
+        if (!wasCurrent)
+        {
+            UpdateChrome();
+            ApplyCurrentWindowMode();
+            return;
+        }
+
+        var replacementIndex = CaptureRemovalPolicy.SelectReplacementIndex(countBeforeRemoval, removedIndex);
+        if (replacementIndex >= 0)
+        {
+            SelectCapture(_session.Captures[replacementIndex]);
+            if (_isAnnotationToggleActive)
+            {
+                SetAnnotationMode(true);
+            }
+            else
+            {
+                ApplyCurrentWindowMode();
+            }
+
+            return;
+        }
+
+        ClearCurrentCapture();
+    }
+
+    private void ClearCurrentCapture()
+    {
+        _session.CurrentCapture = null;
+        _session.SelectedAnnotation = null;
+        _commentTarget = null;
+        _isDrawing = false;
+        _isAnnotationToggleActive = false;
+        _session.Mode = AnnotationInteractionMode.Idle;
+        CommandBar.SetAnnotationActive(false);
+        ScreenshotSurface.SetImage(null);
+        BlurredCropMask.SetImage(null);
+        BlurredCropMask.IsVisible = false;
+        CommentEditor.IsVisible = false;
+        CropOverlay.IsVisible = false;
+        AnnotationCanvas.Children.Clear();
+        UpdateChrome();
+        ApplyCurrentWindowMode();
+    }
+
+    private static void TryDeleteCaptureFiles(CaptureViewModel capture)
+    {
+        TryDeleteFile(capture.ScreenshotPath);
+        TryDeleteFile(capture.ThumbnailPath);
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private void ToggleCaptureDropdown()
