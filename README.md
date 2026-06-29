@@ -1,34 +1,20 @@
 # AA Annotate
 
-AA Annotate is a lightweight Windows annotation overlay for AI agents. It lets an agent ask the user to visually mark what matters on screen, wait for the user to finish, and continue from a generated `review.md` handoff.
+AA Annotate is a Windows screenshot annotation tool for AI agents.
 
-The app is designed for agent-driven sessions:
+An agent opens an annotation session, waits while the user marks the screen, then continues from the generated `review.md` handoff.
 
-- the agent starts the annotation session;
-- the user captures one or more screens;
-- the user crops, draws numbered boxes, and writes comments;
-- the app writes all session files under the OS temp directory;
-- the agent reads `review.md` and continues the task.
+## Platform
 
-## Status
+Windows is supported now. macOS and Linux support are planned for later.
 
-Current platform support:
+## Install
 
-- Windows x64
-- .NET 10
-- Avalonia UI
+Download `aa-annotate-<version>-win-x64.zip` from the latest GitHub Release, extract it, and run:
 
-The packaged Windows build is self-contained, so end users do not need to install the .NET runtime.
-
-## Install From GitHub Releases
-
-1. Download `aa-annotate-<version>-win-x64.zip` from the latest GitHub Release.
-2. Extract the zip.
-3. Run:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\install.ps1
-   ```
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
 
 Default install locations:
 
@@ -37,13 +23,7 @@ Default install locations:
 %USERPROFILE%\.codex\skills\aa-annotate
 ```
 
-The default installer is intentionally non-invasive. It does not modify `PATH` and does not set persistent environment variables.
-
-To run the installed CLI without changing `PATH`:
-
-```powershell
-& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
-```
+The default installer does not modify `PATH` and does not set persistent environment variables.
 
 Optional user-scoped registration:
 
@@ -58,27 +38,27 @@ Uninstall:
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-## Agent Usage
+## Agent Command
 
-Preferred agent command:
+Preferred command when the CLI is on `PATH`:
 
 ```powershell
 aa-annotate session --wait
 ```
 
-If the installer was used without `PATH` changes:
+Default installed path when `PATH` was not changed:
 
 ```powershell
 & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
 ```
 
-If running from source:
+From source:
 
 ```powershell
 dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait
 ```
 
-When the user sends the session back, the CLI prints:
+Successful sessions print:
 
 ```text
 SESSION_STATUS=completed
@@ -86,21 +66,11 @@ REVIEW_MD=<session folder>\review.md
 ANNOTATIONS_JSON=<session folder>\annotations.json
 ```
 
-Agents should read `REVIEW_MD` first. `ANNOTATIONS_JSON` is available when exact coordinates or structured metadata are required.
+Agents should read `REVIEW_MD` first. Use `ANNOTATIONS_JSON` only when exact coordinates or structured metadata are needed.
 
-## User Workflow
+## Session Model
 
-1. The agent starts AA Annotate.
-2. The floating command bar appears over the selected display.
-3. The user can move the idle command bar between displays while still interacting with the underlying desktop.
-4. Capture takes a screenshot of the active display.
-5. Crop can limit the relevant area; cropped-out regions stay blurred.
-6. Annotation mode lets the user draw numbered rectangles and add comments.
-7. The green send button completes the session and returns data to the waiting agent.
-
-## Session Output
-
-AA Annotate stores session data under the OS temp directory by default, not in the workspace.
+AA Annotate stores session files under the OS temp directory by default.
 
 Typical files:
 
@@ -111,16 +81,25 @@ session.json
 captures/
 ```
 
-The key model is:
+Each annotation contains:
 
 ```text
-Annotation
-  Box number
-  Box coordinates on the screenshot
-  Annotation text
+Box number
+Box coordinates on the screenshot
+Annotation text
 ```
 
-Multiple captures are supported in one session, so a user can annotate different windows, tabs, displays, or application states before sending the result back.
+One session can include multiple captures for different windows, tabs, displays, or application states.
+
+## User Interaction
+
+The user works only inside the annotation overlay opened by the agent:
+
+1. Capture the relevant screen.
+2. Crop the capture when only part of the screen matters.
+3. Draw numbered annotation boxes.
+4. Add comments.
+5. Send the session back to the waiting agent.
 
 ## Codex Skill
 
@@ -130,57 +109,50 @@ The package installs a Codex skill at:
 %USERPROFILE%\.codex\skills\aa-annotate
 ```
 
-The skill tells Codex-compatible agents when to launch the app, how to wait for completion, and which output file to read first.
+The skill defines when to launch AA Annotate, how to wait for completion, and which output file to read.
 
 ## Development
 
 Prerequisites:
 
-- Windows
-- .NET SDK 10
-- PowerShell
+```text
+Windows
+.NET SDK 10
+PowerShell
+```
 
-Build and test:
+Run tests:
 
 ```powershell
 dotnet test AA.Annotate.slnx -v minimal
 ```
 
-Run from source:
-
-```powershell
-dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait
-```
-
-Create a Windows release package:
+Create a Windows package:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\package-win.ps1 -Version 0.1.0
 ```
 
-Publish a GitHub Release from a local authenticated checkout:
+Publish a GitHub Release from an authenticated checkout:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-github-release.ps1 -Version 0.1.0
 ```
 
-The repository also includes a tag-driven GitHub Actions workflow. Pushing a tag such as `v0.1.0` builds the Windows package and creates the release asset.
+Pushing a tag such as `v0.1.0` also runs the GitHub Actions release workflow.
 
-## Distribution Strategy
+## Distribution
 
-The current release uses a zip package plus a user-local PowerShell installer. This is the least intrusive path while the app is still evolving.
+Current release format:
 
-Planned distribution layers:
+```text
+aa-annotate-<version>-win-x64.zip
+```
 
-- Windows zip release for immediate installs.
-- MSIX or winget once the installer behavior stabilizes.
-- Agent Skills for instruction-level integration.
-- MCP server for cross-agent runtime integration with Codex, Claude, Cursor, GitHub Copilot, and other MCP-capable agents.
+Future distribution targets:
 
-## Repository Metadata
-
-Suggested GitHub About values:
-
-- Description: `Desktop annotation overlay for AI agent handoff`
-- Topics: `ai-agents`, `annotation-tool`, `avalonia`, `codex`, `dotnet`, `mcp`, `screenshot`, `windows`
-
+```text
+MSIX or winget for Windows installation
+MCP server for cross-agent runtime integration
+Agent-specific packaging for Codex, Claude, Cursor, and GitHub Copilot
+```
