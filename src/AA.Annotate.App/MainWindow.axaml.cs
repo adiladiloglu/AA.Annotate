@@ -72,8 +72,8 @@ public partial class MainWindow : Window
         CommandBar.MoveSelectorRequested += (_, _) => ToggleDisplayDropdown();
         CommandBar.CaptureRequested += async (_, _) => await CaptureAsync();
         CommandBar.CaptureSelectorRequested += (_, _) => ToggleCaptureDropdown();
-        CommandBar.CropRequested += (_, _) => ToggleCropOverlay();
-        CommandBar.AnnotationRequested += (_, _) => ToggleAnnotationMode();
+        CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
+        CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
         CommandBar.FinishRequested += async (_, _) => await FinishAsync();
         CommandBar.CancelRequested += async (_, _) => await CancelAsync();
         DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
@@ -99,6 +99,10 @@ public partial class MainWindow : Window
         await EnsureSessionAsync();
         ResetIdleTimer();
         UpdateChrome();
+        if (FirstRunAnimationGate.TryClaim())
+        {
+            CommandBar.PlayFirstRunAttentionAnimation();
+        }
     }
 
     private void SuppressNativeWindowBorder()
@@ -335,7 +339,7 @@ public partial class MainWindow : Window
         SuppressNativeWindowBorder();
     }
 
-    private async Task CaptureAsync()
+    private async Task CaptureAsync(bool activateAnnotationAfterCapture = true)
     {
         if (_paths is null || _isCapturing)
         {
@@ -383,8 +387,49 @@ public partial class MainWindow : Window
 
         _session.Captures.Add(capture);
         SelectCapture(capture);
-        SetAnnotationMode(true);
+        if (activateAnnotationAfterCapture)
+        {
+            SetAnnotationMode(true);
+        }
+
         _isCapturing = false;
+    }
+
+    private async Task ActivateCropAsync()
+    {
+        if (CaptureDependentToolPolicy.SelectAction(_session.CurrentCapture is not null) == CaptureDependentToolAction.CaptureFirst)
+        {
+            await CaptureAsync(activateAnnotationAfterCapture: false);
+        }
+
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        ToggleCropOverlay();
+    }
+
+    private async Task ActivateAnnotationAsync()
+    {
+        var hadCapture = _session.CurrentCapture is not null;
+        if (CaptureDependentToolPolicy.SelectAction(hadCapture) == CaptureDependentToolAction.CaptureFirst)
+        {
+            await CaptureAsync(activateAnnotationAfterCapture: false);
+        }
+
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        if (!hadCapture)
+        {
+            SetAnnotationMode(true);
+            return;
+        }
+
+        ToggleAnnotationMode();
     }
 
     private void ToggleAnnotationMode()

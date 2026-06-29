@@ -1,9 +1,14 @@
 using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia;
 
 namespace AA.Annotate.App.Views;
 
 public partial class FloatingCommandBar : UserControl
 {
+    private DispatcherTimer? _attentionTimer;
+
     public event EventHandler? MoveSelectorRequested;
 
     public event EventHandler? CaptureRequested;
@@ -39,5 +44,37 @@ public partial class FloatingCommandBar : UserControl
     {
         AnnotationButton.Classes.Set("activeIconButton", isActive);
         AnnotationButton.Classes.Set("iconButton", !isActive);
+    }
+
+    public void PlayFirstRunAttentionAnimation()
+    {
+        _attentionTimer?.Stop();
+        var transform = new ScaleTransform(1, 1);
+        RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
+        RenderTransform = transform;
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var duration = TimeSpan.FromMilliseconds(1400);
+        _attentionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        _attentionTimer.Tick += (_, _) =>
+        {
+            var progress = Math.Clamp((DateTimeOffset.UtcNow - startedAt).TotalMilliseconds / duration.TotalMilliseconds, 0, 1);
+            if (progress >= 1)
+            {
+                transform.ScaleX = 1;
+                transform.ScaleY = 1;
+                Opacity = 1;
+                _attentionTimer?.Stop();
+                return;
+            }
+
+            var envelope = Math.Sin(Math.PI * progress);
+            var pulse = Math.Max(0, Math.Sin(progress * Math.PI * 6));
+            var scale = 1 + envelope * (0.025 + pulse * 0.045);
+            transform.ScaleX = scale;
+            transform.ScaleY = scale;
+            Opacity = 0.9 + envelope * 0.1;
+        };
+        _attentionTimer.Start();
     }
 }
