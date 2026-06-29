@@ -37,6 +37,12 @@ Codex skill: %USERPROFILE%\.codex\skills\aa-annotate
 
 The default installer does not modify `PATH` and does not set persistent environment variables.
 
+To install the bundled Codex plugin as well:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/install.ps1))) -InstallCodexPlugin"
+```
+
 ### Manual Install
 
 1. Download `aa-annotate-<version>-win-x64.zip` from the latest GitHub Release.

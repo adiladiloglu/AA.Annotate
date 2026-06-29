@@ -35,6 +35,16 @@ Optional user-scoped registration:
   powershell -ExecutionPolicy Bypass -File .\install.ps1 -AddCliToUserPath
   powershell -ExecutionPolicy Bypass -File .\install.ps1 -SetUserAppEnvironmentVariable
 
+Optional Codex plugin install:
+
+  powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallCodexPlugin
+
+Default plugin locations:
+
+  Plugin:      %USERPROFILE%\plugins\aa-annotate
+  Marketplace: %USERPROFILE%\.agents\plugins\marketplace.json
+
 Uninstall:
 
   powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+  powershell -ExecutionPolicy Bypass -File .\uninstall.ps1 -RemoveCodexPlugin

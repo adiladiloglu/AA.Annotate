@@ -4,9 +4,12 @@ param(
     [string]$Runtime = 'win-x64',
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'AA.Annotate'),
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.codex\skills'),
+    [string]$PluginsRoot = (Join-Path $env:USERPROFILE 'plugins'),
+    [string]$MarketplacePath = (Join-Path $env:USERPROFILE '.agents\plugins\marketplace.json'),
     [string]$GitHubToken = $(if ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $env:GH_TOKEN }),
     [switch]$AddCliToUserPath,
     [switch]$SetUserAppEnvironmentVariable,
+    [switch]$InstallCodexPlugin,
     [switch]$KeepDownload
 )
 
@@ -122,6 +125,8 @@ function Invoke-PackagedInstaller {
     $arguments = @{
         InstallRoot = $InstallRoot
         SkillsRoot = $SkillsRoot
+        PluginsRoot = $PluginsRoot
+        MarketplacePath = $MarketplacePath
     }
 
     if ($AddCliToUserPath) {
@@ -130,6 +135,10 @@ function Invoke-PackagedInstaller {
 
     if ($SetUserAppEnvironmentVariable) {
         $arguments.SetUserAppEnvironmentVariable = $true
+    }
+
+    if ($InstallCodexPlugin) {
+        $arguments.InstallCodexPlugin = $true
     }
 
     & $installer @arguments
@@ -146,11 +155,27 @@ function Test-Installation {
         }
     }
 
+    if ($InstallCodexPlugin) {
+        $pluginRoot = Join-Path $PluginsRoot 'aa-annotate'
+        $pluginCli = Join-Path $pluginRoot 'cli\aa-annotate.exe'
+        $pluginManifest = Join-Path $pluginRoot '.codex-plugin\plugin.json'
+
+        foreach ($requiredPath in @($pluginCli, $pluginManifest, $MarketplacePath)) {
+            if (-not (Test-Path -LiteralPath $requiredPath)) {
+                throw "Codex plugin install verification failed. Missing: $requiredPath"
+            }
+        }
+    }
+
     Write-Host ''
     Write-Host 'AA Annotate bootstrap verification passed.'
     Write-Host "App:   $appExe"
     Write-Host "CLI:   $cliExe"
     Write-Host "Skill: $skillFile"
+    if ($InstallCodexPlugin) {
+        Write-Host "Plugin: $(Join-Path $PluginsRoot 'aa-annotate')"
+        Write-Host "Marketplace: $MarketplacePath"
+    }
 }
 
 $client = New-InstallerHttpClient -GitHubToken $GitHubToken
