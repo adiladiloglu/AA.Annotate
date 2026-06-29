@@ -18,6 +18,8 @@ One-command install from the latest GitHub Release:
 powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/install.ps1 | iex"
 ```
 
+The one-command install requires the repository and release asset to be publicly accessible. For private repository testing, clone the repo and run `install.ps1` locally with `-GitHubToken` or set `GITHUB_TOKEN`/`GH_TOKEN`.
+
 Default install locations:
 
 ```text

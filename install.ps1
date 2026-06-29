@@ -4,6 +4,7 @@ param(
     [string]$Runtime = 'win-x64',
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'AA.Annotate'),
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.codex\skills'),
+    [string]$GitHubToken = $(if ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $env:GH_TOKEN }),
     [switch]$AddCliToUserPath,
     [switch]$SetUserAppEnvironmentVariable,
     [switch]$KeepDownload
@@ -13,9 +14,18 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Net.Http
 
 function New-InstallerHttpClient {
+    param(
+        [string]$GitHubToken
+    )
+
     $client = [System.Net.Http.HttpClient]::new()
     $client.DefaultRequestHeaders.UserAgent.ParseAdd('AA-Annotate-Installer')
     $client.DefaultRequestHeaders.Accept.ParseAdd('application/vnd.github+json')
+
+    if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
+        $client.DefaultRequestHeaders.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new('Bearer', $GitHubToken)
+    }
+
     $client
 }
 
@@ -41,12 +51,24 @@ function Save-UriToFile {
         [string]$Path
     )
 
+    $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $Uri)
+    $request.Headers.Accept.Clear()
+    $request.Headers.Accept.ParseAdd('application/octet-stream')
+
     try {
-        $bytes = $Client.GetByteArrayAsync($Uri).GetAwaiter().GetResult()
+        $response = $Client.SendAsync($request).GetAwaiter().GetResult()
+        $response.EnsureSuccessStatusCode() | Out-Null
+        $bytes = $response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
         [System.IO.File]::WriteAllBytes($Path, $bytes)
     }
     catch [System.Net.Http.HttpRequestException] {
         throw "Failed to download AA Annotate release asset from $Uri. $($_.Exception.Message)"
+    }
+    finally {
+        $request.Dispose()
+        if ($null -ne $response) {
+            $response.Dispose()
+        }
     }
 }
 
@@ -131,7 +153,7 @@ function Test-Installation {
     Write-Host "Skill: $skillFile"
 }
 
-$client = New-InstallerHttpClient
+$client = New-InstallerHttpClient -GitHubToken $GitHubToken
 $release = Get-GitHubRelease -Client $client -Repository $Repository -Version $Version
 $asset = Get-ReleaseAsset -Release $release -Runtime $Runtime
 
@@ -144,14 +166,20 @@ New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
 
 try {
     Write-Host "Downloading AA Annotate $($release.tag_name): $($asset.name)"
-    Save-UriToFile -Client $client -Uri $asset.browser_download_url -Path $downloadPath
+    Save-UriToFile -Client $client -Uri $asset.url -Path $downloadPath
 
     Expand-Archive -LiteralPath $downloadPath -DestinationPath $extractRoot -Force
-    $packageRoot = Get-ChildItem -LiteralPath $extractRoot -Directory |
-        Select-Object -First 1
+    $packageRoot = if (Test-Path -LiteralPath (Join-Path $extractRoot 'install.ps1')) {
+        Get-Item -LiteralPath $extractRoot
+    }
+    else {
+        Get-ChildItem -LiteralPath $extractRoot -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'install.ps1') } |
+            Select-Object -First 1
+    }
 
     if ($null -eq $packageRoot) {
-        throw "Downloaded archive did not contain a package folder: $downloadPath"
+        throw "Downloaded archive did not contain a package folder with install.ps1: $downloadPath"
     }
 
     Invoke-PackagedInstaller -PackageRoot $packageRoot.FullName
