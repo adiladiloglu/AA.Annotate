@@ -36,12 +36,17 @@ if (-not (Test-Path -LiteralPath $assetPath)) {
     throw "Release asset was not created: $assetPath"
 }
 
-$existingRelease = gh release view $tag --repo $Repository --json tagName 2>$null
-if ($LASTEXITCODE -eq 0 -and -not $Clobber) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+gh release view $tag --repo $Repository --json tagName *> $null
+$releaseViewExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+
+if ($releaseViewExitCode -eq 0 -and -not $Clobber) {
     throw "Release $tag already exists. Re-run with -Clobber to replace the uploaded asset."
 }
 
-if ($existingRelease -and $Clobber) {
+if ($releaseViewExitCode -eq 0 -and $Clobber) {
     gh release upload $tag $assetPath --repo $Repository --clobber
     Write-Host "Updated release asset: $assetPath"
     exit 0
