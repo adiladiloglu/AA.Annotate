@@ -15,6 +15,12 @@ Use AA Annotate when the next step depends on the user's visual selection or com
    aa-annotate session --wait
    ```
 
+   If the repo-local Windows publish output is available, run:
+
+   ```powershell
+   & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait
+   ```
+
    If the command is not installed but the source repo is available, run:
 
    ```powershell
@@ -37,6 +43,8 @@ Use AA Annotate when the next step depends on the user's visual selection or com
    ANNOTATIONS_JSON=...
    ```
 
+   If stdout contains `SESSION_STATUS=error`, read `ERROR_MESSAGE` and report that the annotation session failed.
+
 4. Read `REVIEW_MD` first. Treat it as the primary agent-facing handoff. It contains captures, crop information, annotation numbers, comments, and image paths.
 
 5. Read `ANNOTATIONS_JSON` only when exact structured coordinates or full session metadata are needed.
@@ -49,4 +57,4 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 - Do not continue as if annotations exist when `SESSION_STATUS` is `cancelled` or `error`; tell the user the session did not complete.
 - Do not default to `session.json` or other private local state. Use `review.md` first, then `annotations.json` if structured data is required.
 - Keep the annotation command running with a long timeout; the user may need time to switch apps, capture multiple screens, crop, and write comments.
-- If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom installs.
+- If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.

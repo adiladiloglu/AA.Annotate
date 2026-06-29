@@ -18,4 +18,10 @@
     <ProjectReference Include="..\AA.Annotate.Platform\AA.Annotate.Platform.csproj" />
     <ProjectReference Include="..\AA.Annotate.Platform.Windows\AA.Annotate.Platform.Windows.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>AA.Annotate.App.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

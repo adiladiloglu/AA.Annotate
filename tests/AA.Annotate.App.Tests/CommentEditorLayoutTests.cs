@@ -1,4 +1,5 @@
 using AA.Annotate.App.Views;
+using Avalonia.Input;
 
 namespace AA.Annotate.App.Tests;
 
@@ -28,5 +29,17 @@ public sealed class CommentEditorLayoutTests
         var height = CommentEditorLayout.CalculateTextHostHeight(text, charactersPerLine: 48);
 
         Assert.Equal(CommentEditorLayout.MaximumTextHostHeight, height);
+    }
+
+    [Fact]
+    public void EnterCommitsComment()
+    {
+        Assert.True(CommentEditor.IsCommitKey(Key.Enter, KeyModifiers.None));
+    }
+
+    [Fact]
+    public void ShiftEnterDoesNotCommitComment()
+    {
+        Assert.False(CommentEditor.IsCommitKey(Key.Enter, KeyModifiers.Shift));
     }
 }

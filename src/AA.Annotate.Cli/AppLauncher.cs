@@ -2,22 +2,22 @@ using System.Diagnostics;
 
 namespace AA.Annotate.Cli;
 
-public sealed class AppLauncher
+public class AppLauncher
 {
-    public Process Launch(string sessionFolder)
+    public virtual Process Launch(string sessionFolder)
     {
-        var executable = ResolveExecutable();
+        var executable = ResolveExecutablePath();
         var startInfo = new ProcessStartInfo
         {
             FileName = executable,
-            UseShellExecute = false
+            UseShellExecute = true
         };
         startInfo.ArgumentList.Add("--session");
         startInfo.ArgumentList.Add(sessionFolder);
         return Process.Start(startInfo) ?? throw new InvalidOperationException($"Failed to start {executable}.");
     }
 
-    private static string ResolveExecutable()
+    public virtual string ResolveExecutablePath()
     {
         return ResolveExecutable(AppContext.BaseDirectory, Environment.GetEnvironmentVariable);
     }
@@ -27,6 +27,13 @@ public sealed class AppLauncher
         var overridePath = getEnvironmentVariable("AA_ANNOTATE_APP");
         if (!string.IsNullOrWhiteSpace(overridePath))
         {
+            if (!File.Exists(overridePath))
+            {
+                throw new FileNotFoundException(
+                    $"AA_ANNOTATE_APP points to a file that does not exist: {overridePath}",
+                    overridePath);
+            }
+
             return overridePath;
         }
 
@@ -34,6 +41,16 @@ public sealed class AppLauncher
         if (File.Exists(adjacentApp))
         {
             return adjacentApp;
+        }
+
+        var adjacentRuntimePublishedApp = Path.GetFullPath(Path.Combine(
+            baseDirectory,
+            "..",
+            "app-win-x64",
+            "AA.Annotate.App.exe"));
+        if (File.Exists(adjacentRuntimePublishedApp))
+        {
+            return adjacentRuntimePublishedApp;
         }
 
         var sameDirectoryApp = Path.Combine(baseDirectory, "AA.Annotate.App.exe");

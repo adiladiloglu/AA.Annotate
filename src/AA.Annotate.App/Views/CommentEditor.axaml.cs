@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 
 namespace AA.Annotate.App.Views;
 
@@ -14,7 +15,7 @@ public partial class CommentEditor : UserControl
         InitializeComponent();
         DeleteButton.Click += (_, _) => DeleteRequested?.Invoke(this, EventArgs.Empty);
         OkButton.Click += (_, _) => SaveRequested?.Invoke(this, CommentTextBox.Text ?? string.Empty);
-        CommentTextBox.KeyDown += OnCommentTextBoxKeyDown;
+        CommentTextBox.AddHandler(InputElement.KeyDownEvent, OnCommentTextBoxKeyDown, RoutingStrategies.Tunnel);
         CommentTextBox.TextChanged += (_, _) => UpdateTextHeight();
         CommentTextBox.GotFocus += (_, _) => TextHostBorder.Classes.Set("focused", true);
         CommentTextBox.LostFocus += (_, _) => TextHostBorder.Classes.Set("focused", false);
@@ -36,13 +37,18 @@ public partial class CommentEditor : UserControl
         }
 
         e.Handled = true;
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        if (!IsCommitKey(e.Key, e.KeyModifiers))
         {
             InsertLineBreak();
             return;
         }
 
         SaveRequested?.Invoke(this, CommentTextBox.Text ?? string.Empty);
+    }
+
+    internal static bool IsCommitKey(Key key, KeyModifiers modifiers)
+    {
+        return key == Key.Enter && !modifiers.HasFlag(KeyModifiers.Shift);
     }
 
     private void InsertLineBreak()
