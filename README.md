@@ -68,40 +68,5 @@ The skill defines when to launch AA Annotate, how to wait for completion, and wh
 
 Agent-facing command and output details are documented in [skills/aa-annotate/SKILL.md](skills/aa-annotate/SKILL.md).
 
-## Development
 
-Prerequisites:
 
-```text
-Windows
-.NET SDK 10
-PowerShell
-```
-
-Run tests:
-
-```powershell
-dotnet test AA.Annotate.slnx -v minimal
-```
-
-Create a Windows package:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-win.ps1 -Version 0.1.0
-```
-
-## Distribution
-
-Current release format:
-
-```text
-aa-annotate-<version>-win-x64.zip
-```
-
-Future distribution targets:
-
-```text
-MSIX or winget for Windows installation
-MCP server for cross-agent runtime integration
-Agent-specific packaging for Codex, Claude, Cursor, and GitHub Copilot
-```
