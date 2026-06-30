@@ -6,9 +6,9 @@ It gives agents a small, reliable way to ask users for visual context: capture t
 
 ## Usage Demo
 
-[![AA Annotate usage demo](docs/Media/im1.png)](https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/docs/Media/Usage_4x.mp4)
+[![AA Annotate usage demo](docs/Media/im1.png)](docs/Media/Usage_4x.mp4)
 
-[Watch the usage demo](https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/docs/Media/Usage_4x.mp4)
+[Watch the usage demo](docs/Media/Usage_4x.mp4)
 
 ## Screenshots
 
