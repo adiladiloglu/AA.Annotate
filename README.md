@@ -6,12 +6,9 @@ It gives agents a small, reliable way to ask users for visual context: capture t
 
 ## Usage Demo
 
-<video controls src="docs/Media/Usage_4x.mp4" width="100%">
-  <a href="docs/Media/Usage_4x.mp4">Watch the usage demo</a>
-</video>
+[![AA Annotate usage demo](docs/Media/im1.png)](https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/docs/Media/Usage_4x.mp4)
 
-If your Markdown viewer does not play embedded video, use the direct file link:
-[Watch the usage demo](docs/Media/Usage_4x.mp4)
+[Watch the usage demo](https://raw.githubusercontent.com/adiladiloglu/AA.Annotate/master/docs/Media/Usage_4x.mp4)
 
 ## Screenshots
 
