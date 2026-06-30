@@ -15,14 +15,18 @@ public readonly record struct AnnotationCropExportResult(
 
 public static class AnnotationCropPolicy
 {
-    public static AnnotationCropExportResult Classify(RectInt annotationBox, RectInt crop)
+    public const int MinimumExportBoxSize = 12;
+
+    public static AnnotationCropExportResult Classify(RectInt annotationBox, RectInt crop, int minimumExportSize = MinimumExportBoxSize)
     {
         var left = Math.Max(annotationBox.X, crop.X);
         var top = Math.Max(annotationBox.Y, crop.Y);
         var right = Math.Min(annotationBox.Right, crop.Right);
         var bottom = Math.Min(annotationBox.Bottom, crop.Bottom);
+        var width = right - left;
+        var height = bottom - top;
 
-        if (right <= left || bottom <= top)
+        if (width < minimumExportSize || height < minimumExportSize)
         {
             return new AnnotationCropExportResult(AnnotationCropExportState.Excluded, null);
         }
@@ -31,7 +35,7 @@ public static class AnnotationCropPolicy
             top != annotationBox.Y ||
             right != annotationBox.Right ||
             bottom != annotationBox.Bottom;
-        var exportBox = new RectInt(left - crop.X, top - crop.Y, right - left, bottom - top);
+        var exportBox = new RectInt(left - crop.X, top - crop.Y, width, height);
         return new AnnotationCropExportResult(
             clipped ? AnnotationCropExportState.Clipped : AnnotationCropExportState.Included,
             exportBox);

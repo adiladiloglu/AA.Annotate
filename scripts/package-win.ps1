@@ -28,7 +28,11 @@ $publishArgs = @(
     '-c', $Configuration,
     '-r', $Runtime,
     '--self-contained', $selfContainedText,
-    '-p:PublishSingleFile=false'
+    '-p:PublishSingleFile=false',
+    "-p:Version=$Version",
+    "-p:AssemblyVersion=$Version.0",
+    "-p:FileVersion=$Version.0",
+    "-p:InformationalVersion=$Version"
 )
 
 dotnet publish (Join-Path $repoRoot 'src\AA.Annotate.App\AA.Annotate.App.csproj') @publishArgs -o $appPublish

@@ -12,6 +12,7 @@
     ExtendClientAreaChromeHints="NoChrome"
     ExtendClientAreaTitleBarHeightHint="-1"
     SystemDecorations="None"
+    ShowInTaskbar="False"
     TransparencyLevelHint="Transparent"
     Topmost="True">
   <Grid Name="RootGrid" Background="Transparent">
@@ -21,9 +22,56 @@
     <views:CropOverlay Name="CropOverlay" IsVisible="False" />
     <Canvas Name="ChromeCanvas">
       <views:FloatingCommandBar Name="CommandBar" Canvas.Left="24" Canvas.Top="24" />
-      <views:DisplayDropdown Name="DisplayDropdown" Canvas.Left="24" Canvas.Top="82" IsVisible="False" />
-      <views:CaptureDropdown Name="CaptureDropdown" Canvas.Left="118" Canvas.Top="82" IsVisible="False" />
+      <views:DisplayDropdown Name="DisplayDropdown" Canvas.Left="24" Canvas.Top="72" IsVisible="False" />
+      <views:CaptureDropdown Name="CaptureDropdown" Canvas.Left="106" Canvas.Top="72" IsVisible="False" />
       <views:CommentEditor Name="CommentEditor" Canvas.Left="180" Canvas.Top="180" IsVisible="False" />
+      <Border Name="AboutPanel"
+              Canvas.Left="188"
+              Canvas.Top="72"
+              Width="236"
+              IsVisible="False"
+              Padding="12"
+              CornerRadius="{StaticResource RadiusLarge}"
+              Background="{StaticResource PanelSurfaceBrush}"
+              BorderBrush="{StaticResource OverlayBorderBrush}"
+              BorderThickness="1">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+              ColumnDefinitions="*,Auto"
+              RowSpacing="7">
+          <TextBlock Text="AA Annotate"
+                     Foreground="White"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center" />
+          <Button Name="AboutCloseButton"
+                  Grid.Column="1"
+                  Classes="iconButton"
+                  Width="26"
+                  Height="26"
+                  ToolTip.Tip="Close">
+            <PathIcon Width="13" Height="13" Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
+          </Button>
+          <TextBlock Name="AboutVersionText"
+                     Grid.Row="1"
+                     Grid.ColumnSpan="2"
+                     Foreground="#EAF7FBFF"
+                     FontSize="11" />
+          <TextBlock Grid.Row="2"
+                     Grid.ColumnSpan="2"
+                     Foreground="#C8E2EBF6"
+                     FontSize="11"
+                     Text="License: Apache-2.0" />
+          <TextBlock Name="AboutGitHubLinkText"
+                     Grid.Row="3"
+                     Grid.ColumnSpan="2"
+                     Cursor="Hand"
+                     Foreground="#EAF7FBFF"
+                     FontSize="11"
+                     TextDecorations="Underline"
+                     ToolTip.Tip="Open GitHub repository"
+                     Text="GitHub: adiladiloglu/AA.Annotate" />
+        </Grid>
+      </Border>
     </Canvas>
     <Grid Name="IdleWarningOverlay"
           IsVisible="False"

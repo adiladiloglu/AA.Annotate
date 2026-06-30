@@ -2,11 +2,11 @@ namespace AA.Annotate.App.Views;
 
 public static class CommentEditorLayout
 {
-    public const double MinimumTextHostHeight = 36;
-    public const double MaximumTextHostHeight = 156;
+    public const double MinimumTextHostHeight = 42;
+    public const double MaximumTextHostHeight = 130;
 
     private const double LineHeight = 20;
-    private const double VerticalPadding = 14;
+    private const double VerticalPadding = 2;
 
     public static double CalculateTextHostHeight(string? text, int charactersPerLine)
     {

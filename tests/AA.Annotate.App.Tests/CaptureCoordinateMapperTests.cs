@@ -29,6 +29,17 @@ public sealed class CaptureCoordinateMapperTests
         Assert.Equal(new RectInt(256, 128, 768, 432), viewCrop);
     }
 
+    [Fact]
+    public void PixelMappingKeepsBottomEdgeAnnotationAtMinimumMeaningfulSize()
+    {
+        var pixelRect = CaptureCoordinateMapper.ToPixelRect(
+            new RectInt(1724, 1599, 308, 1),
+            new SizeInt(2560, 1600),
+            new SizeInt(2560, 1600));
+
+        Assert.Equal(new RectInt(1724, 1588, 308, 12), pixelRect);
+    }
+
     private static CaptureViewModel CreateCapture()
     {
         return new CaptureViewModel(

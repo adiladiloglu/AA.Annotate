@@ -12,7 +12,8 @@ public sealed record AnnotationCapture(
     SizeInt ScreenshotPixelSize,
     RectInt ScreenBounds,
     RectInt? CropRect,
-    IReadOnlyList<Annotation> Annotations)
+    IReadOnlyList<Annotation> Annotations,
+    string? AnnotatedImagePath = null)
 {
     public int GetNextAnnotationNumber()
     {

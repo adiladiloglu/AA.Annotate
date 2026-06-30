@@ -9,9 +9,12 @@ namespace AA.Annotate.App.Views;
 
 public partial class DisplayDropdown : UserControl
 {
-    private const int MapWidth = 340;
-    private const int MapHeight = 130;
-    private const int MapPadding = 10;
+    private const int MapWidth = 298;
+    private const int MapHeight = 112;
+    private const int MapPadding = 8;
+    private readonly IBrush? _panelBrush;
+    private readonly IBrush? _itemBrush;
+    private readonly IBrush? _selectedItemBrush;
     private readonly Dictionary<Button, DisplayViewModel> _items = [];
 
     public event EventHandler<DisplayViewModel>? DisplaySelected;
@@ -19,6 +22,16 @@ public partial class DisplayDropdown : UserControl
     public DisplayDropdown()
     {
         InitializeComponent();
+        _panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
+        _itemBrush = App.Current?.FindResource("PanelItemBrush") as IBrush;
+        _selectedItemBrush = App.Current?.FindResource("PanelItemSelectedBrush") as IBrush;
+        SetPanelHoverActive(false);
+    }
+
+    public void SetPanelHoverActive(bool isActive)
+    {
+        Opacity = 1;
+        RootBorder.Background = _panelBrush;
     }
 
     public void SetDisplays(IEnumerable<DisplayViewModel> displays)
@@ -41,11 +54,11 @@ public partial class DisplayDropdown : UserControl
                 Height = bounds.Height,
                 Padding = new Thickness(0),
                 Background = display.IsCurrent
-                    ? App.Current?.FindResource("OverlayActiveBrush") as Avalonia.Media.IBrush
-                    : new SolidColorBrush(Color.FromArgb(150, 42, 45, 48)),
+                    ? _selectedItemBrush
+                    : _itemBrush,
                 BorderBrush = App.Current?.FindResource("OverlayBorderBrush") as Avalonia.Media.IBrush,
                 BorderThickness = new Avalonia.Thickness(1),
-                CornerRadius = new Avalonia.CornerRadius(4),
+                CornerRadius = new Avalonia.CornerRadius(5),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
                 Content = CreateContent(display)
@@ -67,7 +80,7 @@ public partial class DisplayDropdown : UserControl
             {
                 Text = display.Number.ToString(),
                 Foreground = Avalonia.Media.Brushes.White,
-                FontSize = 24,
+                FontSize = 19,
                 FontWeight = FontWeight.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center

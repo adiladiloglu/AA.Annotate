@@ -17,6 +17,7 @@ public static class CaptureCoordinateMapper
     public static RectInt ToPixelRect(RectInt viewRect, SizeInt screenshotSize, SizeInt viewportSize)
     {
         var viewport = NormalizeSize(viewportSize);
+        viewRect = AnnotationRectPolicy.ClampToBounds(viewRect, viewport);
         var scaleX = screenshotSize.Width / (double)viewport.Width;
         var scaleY = screenshotSize.Height / (double)viewport.Height;
         var x = Math.Clamp((int)Math.Round(viewRect.X * scaleX), 0, screenshotSize.Width - 1);

@@ -19,4 +19,18 @@ public static class InteractionSurfacePolicy
             commentEditorVisible ||
             cropIsActive;
     }
+
+    public static bool ShouldRenderCaptureSurface(
+        bool isDrawing,
+        AnnotationInteractionMode mode,
+        bool cropOverlayVisible,
+        bool commentEditorVisible)
+    {
+        return isDrawing ||
+            cropOverlayVisible ||
+            commentEditorVisible ||
+            mode is AnnotationInteractionMode.DrawingAnnotation or
+                AnnotationInteractionMode.EditingCrop or
+                AnnotationInteractionMode.AnnotationSelected;
+    }
 }

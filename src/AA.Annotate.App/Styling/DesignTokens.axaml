@@ -1,30 +1,40 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
-  <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
-  <CornerRadius x:Key="RadiusLarge">14</CornerRadius>
-  <Color x:Key="OverlayRestColor">#59717A86</Color>
-  <Color x:Key="OverlayHoverColor">#DCEFF4FF</Color>
-  <Color x:Key="OverlayActiveColor">#D42C3440</Color>
-  <Color x:Key="SystemAccentColor">#DCEFF4FF</Color>
-  <Color x:Key="SystemAccentColorDark1">#B9D8E5F2</Color>
-  <Color x:Key="SystemAccentColorDark2">#96B8C7D4</Color>
-  <Color x:Key="SystemAccentColorDark3">#738C99A6</Color>
-  <Color x:Key="SystemAccentColorLight1">#EAF7FBFF</Color>
-  <Color x:Key="SystemAccentColorLight2">#DCEFF4FF</Color>
-  <Color x:Key="SystemAccentColorLight3">#C8E2EBF6</Color>
-  <Color x:Key="ConfirmColor">#2FBC64</Color>
-  <Color x:Key="AnnotationColor">#F6A609</Color>
+  <CornerRadius x:Key="RadiusSmall">5</CornerRadius>
+  <CornerRadius x:Key="RadiusMedium">7</CornerRadius>
+  <CornerRadius x:Key="RadiusLarge">10</CornerRadius>
+  <Color x:Key="OverlayRestColor">#5916171A</Color>
+  <Color x:Key="OverlaySolidColor">#FF16171A</Color>
+  <Color x:Key="OverlayHoverColor">#F2E8EAED</Color>
+  <Color x:Key="OverlayActiveColor">#F22A2D33</Color>
+  <Color x:Key="SystemAccentColor">#E8EAED</Color>
+  <Color x:Key="SystemAccentColorDark1">#C8CDD3</Color>
+  <Color x:Key="SystemAccentColorDark2">#9AA3AD</Color>
+  <Color x:Key="SystemAccentColorDark3">#6F7782</Color>
+  <Color x:Key="SystemAccentColorLight1">#F5F7FA</Color>
+  <Color x:Key="SystemAccentColorLight2">#E8EAED</Color>
+  <Color x:Key="SystemAccentColorLight3">#D8DCE2</Color>
+  <Color x:Key="ConfirmColor">#28C76F</Color>
+  <Color x:Key="AnnotationColor">#E0A536</Color>
+  <Color x:Key="InvalidAnnotationColor">#EF4444</Color>
   <Color x:Key="CropColor">#2D72D9</Color>
   <SolidColorBrush x:Key="OverlayRestBrush" Color="{StaticResource OverlayRestColor}" />
+  <SolidColorBrush x:Key="OverlaySolidBrush" Color="{StaticResource OverlaySolidColor}" />
   <SolidColorBrush x:Key="OverlayHoverBrush" Color="{StaticResource OverlayHoverColor}" />
   <SolidColorBrush x:Key="OverlayActiveBrush" Color="{StaticResource OverlayActiveColor}" />
-  <SolidColorBrush x:Key="OverlayBorderBrush" Color="#72FFFFFF" />
+  <SolidColorBrush x:Key="OverlayBorderBrush" Color="#18FFFFFF" />
+  <SolidColorBrush x:Key="PanelSurfaceBrush" Color="#FF2B2B2B" />
+  <SolidColorBrush x:Key="PanelItemBrush" Color="#FF343434" />
+  <SolidColorBrush x:Key="PanelItemSelectedBrush" Color="#FF3A414B" />
   <SolidColorBrush x:Key="ConfirmBrush" Color="{StaticResource ConfirmColor}" />
-  <SolidColorBrush x:Key="AnnotationBrush" Color="{StaticResource AnnotationColor}" Opacity="0.32" />
-  <SolidColorBrush x:Key="AnnotationStrokeBrush" Color="{StaticResource AnnotationColor}" Opacity="0.72" />
+  <SolidColorBrush x:Key="AnnotationBrush" Color="{StaticResource AnnotationColor}" Opacity="0.05" />
+  <SolidColorBrush x:Key="AnnotationStrokeBrush" Color="{StaticResource AnnotationColor}" Opacity="0.95" />
+  <SolidColorBrush x:Key="InvalidAnnotationBrush" Color="{StaticResource InvalidAnnotationColor}" Opacity="0.06" />
+  <SolidColorBrush x:Key="InvalidAnnotationStrokeBrush" Color="{StaticResource InvalidAnnotationColor}" Opacity="0.95" />
   <SolidColorBrush x:Key="CropBrush" Color="{StaticResource CropColor}" Opacity="0.56" />
-  <SolidColorBrush x:Key="CommentEditorBrush" Color="#D42C3440" />
-  <SolidColorBrush x:Key="TextInputBrush" Color="#8F111827" />
+  <SolidColorBrush x:Key="CommentEditorBrush" Color="#FF2B2B2B" />
+  <SolidColorBrush x:Key="TextInputBrush" Color="#F20B0D10" />
+  <SolidColorBrush x:Key="TextSelectionBrush" Color="#FF2D72D9" />
+  <SolidColorBrush x:Key="TextSelectionForegroundBrush" Color="#FFFFFFFF" />
 
 </ResourceDictionary>

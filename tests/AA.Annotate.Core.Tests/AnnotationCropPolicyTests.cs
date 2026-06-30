@@ -37,4 +37,15 @@ public sealed class AnnotationCropPolicyTests
         Assert.Equal(AnnotationCropExportState.Excluded, result.State);
         Assert.Null(result.ExportBoxRect);
     }
+
+    [Fact]
+    public void ClassifyReturnsExcludedWhenVisibleRegionIsBelowMinimumExportSize()
+    {
+        var result = AnnotationCropPolicy.Classify(
+            new RectInt(1724, 1599, 308, 1),
+            new RectInt(0, 0, 2560, 1600));
+
+        Assert.Equal(AnnotationCropExportState.Excluded, result.State);
+        Assert.Null(result.ExportBoxRect);
+    }
 }

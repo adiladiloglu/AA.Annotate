@@ -36,10 +36,14 @@ public partial class App : Application
         Resources["RadiusSmall"] = new CornerRadius(6);
         Resources["RadiusMedium"] = new CornerRadius(8);
         Resources["RadiusLarge"] = new CornerRadius(14);
-        Resources["OverlayRestBrush"] = Brush("#59717A86");
+        Resources["OverlayRestBrush"] = Brush("#5916171A");
+        Resources["OverlaySolidBrush"] = Brush("#FF16171A");
         Resources["OverlayHoverBrush"] = Brush("#DCEFF4FF");
         Resources["OverlayActiveBrush"] = Brush("#D42C3440");
-        Resources["OverlayBorderBrush"] = Brush("#72FFFFFF");
+        Resources["OverlayBorderBrush"] = Brush("#18FFFFFF");
+        Resources["PanelSurfaceBrush"] = Brush("#FF2B2B2B");
+        Resources["PanelItemBrush"] = Brush("#FF343434");
+        Resources["PanelItemSelectedBrush"] = Brush("#FF3A414B");
         Resources["SystemAccentColor"] = Color.Parse("#DCEFF4FF");
         Resources["SystemAccentColorDark1"] = Color.Parse("#B9D8E5F2");
         Resources["SystemAccentColorDark2"] = Color.Parse("#96B8C7D4");
@@ -48,11 +52,15 @@ public partial class App : Application
         Resources["SystemAccentColorLight2"] = Color.Parse("#DCEFF4FF");
         Resources["SystemAccentColorLight3"] = Color.Parse("#C8E2EBF6");
         Resources["ConfirmBrush"] = Brush("#2FBC64");
-        Resources["AnnotationBrush"] = Brush("#52F6A609");
-        Resources["AnnotationStrokeBrush"] = Brush("#B8F6A609");
+        Resources["AnnotationBrush"] = Brush("#0DE0A536");
+        Resources["AnnotationStrokeBrush"] = Brush("#F2E0A536");
+        Resources["InvalidAnnotationBrush"] = Brush("#0FEF4444");
+        Resources["InvalidAnnotationStrokeBrush"] = Brush("#F2EF4444");
         Resources["CropBrush"] = Brush("#8F2D72D9");
-        Resources["CommentEditorBrush"] = Brush("#D42C3440");
-        Resources["TextInputBrush"] = Brush("#8F111827");
+        Resources["CommentEditorBrush"] = Resources["PanelSurfaceBrush"];
+        Resources["TextInputBrush"] = Brush("#F20B0D10");
+        Resources["TextSelectionBrush"] = Brush("#FF2D72D9");
+        Resources["TextSelectionForegroundBrush"] = Brush("#FFFFFFFF");
     }
 
     private void RegisterControlStyles()
@@ -129,22 +137,70 @@ public partial class App : Application
                 new Setter(Button.PaddingProperty, new Thickness(0))
             }
         });
+        Styles.Add(new Style(selector => selector.OfType<Button>().Class("commentTextButton"))
+        {
+            Setters =
+            {
+                new Setter(Button.BackgroundProperty, Brushes.Transparent),
+                new Setter(Button.BorderBrushProperty, Brushes.Transparent),
+                new Setter(Button.BorderThicknessProperty, new Thickness(0)),
+                new Setter(Button.ForegroundProperty, Brush("#C8CDD3")),
+                new Setter(Button.CornerRadiusProperty, new CornerRadius(7)),
+                new Setter(Button.PaddingProperty, new Thickness(10, 0)),
+                new Setter(Button.HeightProperty, 30d),
+                new Setter(Button.FontSizeProperty, 12d),
+                new Setter(Button.HorizontalContentAlignmentProperty, Avalonia.Layout.HorizontalAlignment.Center),
+                new Setter(Button.VerticalContentAlignmentProperty, Avalonia.Layout.VerticalAlignment.Center)
+            }
+        });
+        Styles.Add(new Style(selector => selector.OfType<Button>().Class("commentTextButton").Class(":pointerover"))
+        {
+            Setters =
+            {
+                new Setter(Button.BackgroundProperty, Brush("#18FFFFFF")),
+                new Setter(Button.ForegroundProperty, Brushes.White)
+            }
+        });
+        Styles.Add(new Style(selector => selector.OfType<Button>().Class("commentPrimaryButton"))
+        {
+            Setters =
+            {
+                new Setter(Button.BackgroundProperty, Brush("#DCE8EAED")),
+                new Setter(Button.BorderBrushProperty, Brushes.Transparent),
+                new Setter(Button.BorderThicknessProperty, new Thickness(0)),
+                new Setter(Button.ForegroundProperty, Brush("#16171A")),
+                new Setter(Button.CornerRadiusProperty, new CornerRadius(7)),
+                new Setter(Button.PaddingProperty, new Thickness(12, 0)),
+                new Setter(Button.HeightProperty, 30d),
+                new Setter(Button.FontSizeProperty, 12d),
+                new Setter(Button.FontWeightProperty, FontWeight.SemiBold),
+                new Setter(Button.HorizontalContentAlignmentProperty, Avalonia.Layout.HorizontalAlignment.Center),
+                new Setter(Button.VerticalContentAlignmentProperty, Avalonia.Layout.VerticalAlignment.Center)
+            }
+        });
+        Styles.Add(new Style(selector => selector.OfType<Button>().Class("commentPrimaryButton").Class(":pointerover"))
+        {
+            Setters =
+            {
+                new Setter(Button.BackgroundProperty, Brush("#F5F7FA"))
+            }
+        });
         Styles.Add(new Style(selector => selector.OfType<Border>().Class("commentTextHost"))
         {
             Setters =
             {
-                new Setter(Border.BackgroundProperty, Resources["TextInputBrush"]),
-                new Setter(Border.BorderBrushProperty, Resources["OverlayBorderBrush"]),
-                new Setter(Border.BorderThicknessProperty, new Thickness(1)),
-                new Setter(Border.CornerRadiusProperty, new CornerRadius(6))
+                new Setter(Border.BackgroundProperty, Brushes.Transparent),
+                new Setter(Border.BorderBrushProperty, Brushes.Transparent),
+                new Setter(Border.BorderThicknessProperty, new Thickness(0)),
+                new Setter(Border.CornerRadiusProperty, new CornerRadius(0))
             }
         });
         Styles.Add(new Style(selector => selector.OfType<Border>().Class("commentTextHost").Class("focused"))
         {
             Setters =
             {
-                new Setter(Border.BackgroundProperty, Resources["OverlayActiveBrush"]),
-                new Setter(Border.BorderBrushProperty, Resources["OverlayHoverBrush"])
+                new Setter(Border.BackgroundProperty, Brushes.Transparent),
+                new Setter(Border.BorderBrushProperty, Brushes.Transparent)
             }
         });
         Styles.Add(new Style(selector => selector.OfType<TextBox>().Class("commentTextBox"))
@@ -153,10 +209,16 @@ public partial class App : Application
             {
                 new Setter(TextBox.BackgroundProperty, Brushes.Transparent),
                 new Setter(TextBox.ForegroundProperty, Brushes.White),
+                new Setter(TextBox.FocusAdornerProperty, null),
+                new Setter(TextBox.CaretBrushProperty, Brushes.White),
+                new Setter(TextBox.SelectionBrushProperty, Resources["TextSelectionBrush"]),
+                new Setter(TextBox.SelectionForegroundBrushProperty, Resources["TextSelectionForegroundBrush"]),
                 new Setter(TextBox.BorderBrushProperty, Brushes.Transparent),
                 new Setter(TextBox.BorderThicknessProperty, new Thickness(0)),
                 new Setter(TextBox.CornerRadiusProperty, new CornerRadius(0)),
-                new Setter(TextBox.PaddingProperty, new Thickness(10, 7))
+                new Setter(TextBox.PaddingProperty, new Thickness(0)),
+                new Setter(TextBox.FontSizeProperty, 13d),
+                new Setter(TextBox.LineHeightProperty, 20d)
             }
         });
         Styles.Add(new Style(selector => selector.OfType<TextBox>().Class("commentTextBox").Class(":focus"))

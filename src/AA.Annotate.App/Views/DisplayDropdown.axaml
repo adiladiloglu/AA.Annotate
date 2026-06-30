@@ -1,14 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="AA.Annotate.App.Views.DisplayDropdown">
-  <Border Width="360"
-          Padding="8"
+  <Border Name="RootBorder"
+          Width="312"
+          Padding="7"
           CornerRadius="{StaticResource RadiusLarge}"
-          Background="{StaticResource OverlayRestBrush}"
+          Background="{StaticResource PanelSurfaceBrush}"
           BorderBrush="{StaticResource OverlayBorderBrush}"
           BorderThickness="1">
     <Canvas Name="DisplayMap"
-            Width="340"
-            Height="130" />
+            Width="298"
+            Height="112" />
   </Border>
 </UserControl>

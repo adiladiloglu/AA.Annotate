@@ -7,7 +7,10 @@ namespace AA.Annotate.App.Views;
 
 public partial class FloatingCommandBar : UserControl
 {
+    private readonly IBrush? _restBrush;
+    private readonly IBrush? _solidBrush;
     private DispatcherTimer? _attentionTimer;
+    private bool _isPanelHoverActive;
 
     public event EventHandler? MoveSelectorRequested;
 
@@ -21,17 +24,24 @@ public partial class FloatingCommandBar : UserControl
 
     public event EventHandler? FinishRequested;
 
+    public event EventHandler? AboutRequested;
+
     public event EventHandler? CancelRequested;
 
     public FloatingCommandBar()
     {
         InitializeComponent();
+        _restBrush = App.Current?.FindResource("OverlayRestBrush") as IBrush;
+        _solidBrush = App.Current?.FindResource("OverlaySolidBrush") as IBrush;
+        Opacity = 1;
+        RootBorder.Background = _restBrush;
         MoveButton.Click += (_, _) => MoveSelectorRequested?.Invoke(this, EventArgs.Empty);
         CaptureButton.Click += (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty);
         CaptureSelectorButton.Click += (_, _) => CaptureSelectorRequested?.Invoke(this, EventArgs.Empty);
         CropButton.Click += (_, _) => CropRequested?.Invoke(this, EventArgs.Empty);
         AnnotationButton.Click += (_, _) => AnnotationRequested?.Invoke(this, EventArgs.Empty);
         FinishButton.Click += (_, _) => FinishRequested?.Invoke(this, EventArgs.Empty);
+        AboutButton.Click += (_, _) => AboutRequested?.Invoke(this, EventArgs.Empty);
         CancelButton.Click += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -54,6 +64,12 @@ public partial class FloatingCommandBar : UserControl
         CaptureSelectorButton.Opacity = isEnabled ? 1 : 0.45;
     }
 
+    public void SetPanelHoverActive(bool isActive)
+    {
+        _isPanelHoverActive = isActive;
+        ApplyPanelState();
+    }
+
     public void PlayStartupAttentionAnimation()
     {
         _attentionTimer?.Stop();
@@ -71,7 +87,7 @@ public partial class FloatingCommandBar : UserControl
             {
                 transform.ScaleX = 1;
                 transform.ScaleY = 1;
-                Opacity = 1;
+                ApplyPanelState();
                 _attentionTimer?.Stop();
                 return;
             }
@@ -81,8 +97,14 @@ public partial class FloatingCommandBar : UserControl
             var scale = 1 + envelope * (0.025 + pulse * 0.045);
             transform.ScaleX = scale;
             transform.ScaleY = scale;
-            Opacity = 0.9 + envelope * 0.1;
+            Opacity = 1;
         };
         _attentionTimer.Start();
+    }
+
+    private void ApplyPanelState()
+    {
+        Opacity = 1;
+        RootBorder.Background = _isPanelHoverActive ? _solidBrush : _restBrush;
     }
 }

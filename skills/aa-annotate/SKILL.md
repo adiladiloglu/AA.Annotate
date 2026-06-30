@@ -85,14 +85,19 @@ For each `## Capture N` in `REVIEW_MD`:
 - Open the `Image:` path when visual confirmation matters.
 - Resolve relative image paths from the folder containing `REVIEW_MD`.
 - Treat `Image:` as the primary source of truth. If the user cropped, this image is the cropped image; the full screenshot is not exported for normal use.
+- Prefer `Annotated image:` when you need a fast visual map of all numbered annotation boxes for the capture. It is the primary image with exported annotation outlines and numbers drawn on top.
 - Treat every annotation line as relative to the `Image:` path shown in that capture.
+- If an annotation includes an indented `Image:` line, use that cropped annotation snippet for focused inspection of that one region.
 - Apply the indented comment immediately below an annotation line to that numbered rectangle.
 - Do not merge annotation numbers across captures.
 
 Annotation lines use this form:
 
 ```text
+Annotated image: <path>
+
 1. x=<left>, y=<top>, width=<width>, height=<height>
+   Image: <path>
    <comment>
 ```
 
@@ -110,8 +115,10 @@ JSON rules:
 
 - `captures[].screenshotPath` is the primary exported image path to inspect.
 - `captures[].croppedPath` is present when the primary image came from a crop.
+- `captures[].annotatedImagePath` is the exported overview image with annotation boxes and numbers drawn on the primary image.
 - `captures[].cropRect` records the crop in original screenshot coordinates.
 - `captures[].annotations[].boxRect` follows the same coordinate basis as `REVIEW_MD`: it is relative to the primary exported image.
+- `captures[].annotations[].imagePath` is the cropped image for that single annotation box.
 - `captures[].screenshotPixelSize` describes the original capture size, not necessarily the dimensions of a cropped primary image.
 - Resolve relative JSON image paths from the folder containing `ANNOTATIONS_JSON`.
 

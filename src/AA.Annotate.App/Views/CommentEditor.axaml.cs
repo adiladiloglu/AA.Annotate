@@ -18,6 +18,7 @@ public partial class CommentEditor : UserControl
     {
         InitializeComponent();
         DeleteButton.Click += (_, _) => DeleteRequested?.Invoke(this, EventArgs.Empty);
+        CancelButton.Click += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
         OkButton.Click += (_, _) => SaveRequested?.Invoke(this, CommentTextBox.Text ?? string.Empty);
         CommentTextBox.AddHandler(InputElement.KeyDownEvent, OnCommentTextBoxKeyDown, RoutingStrategies.Tunnel);
         CommentTextBox.TextChanged += (_, _) => UpdateTextHeight();
@@ -78,10 +79,10 @@ public partial class CommentEditor : UserControl
 
     private void UpdateTextHeight()
     {
-        var hostWidth = TextHostBorder.Bounds.Width > 0 ? TextHostBorder.Bounds.Width : 360;
+        var hostWidth = TextHostBorder.Bounds.Width > 0 ? TextHostBorder.Bounds.Width : 300;
         var charactersPerLine = Math.Max(24, (int)Math.Floor(hostWidth / 7.2));
         var height = CommentEditorLayout.CalculateTextHostHeight(CommentTextBox.Text, charactersPerLine);
         TextHostBorder.Height = height;
-        CommentTextBox.Height = Math.Max(34, height - 2);
+        CommentTextBox.Height = Math.Max(28, height - 2);
     }
 }

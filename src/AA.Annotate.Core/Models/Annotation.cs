@@ -6,4 +6,5 @@ public sealed record Annotation(
     string AnnotationId,
     int Number,
     RectInt BoxRect,
-    string Comment);
+    string Comment,
+    string? ImagePath = null);

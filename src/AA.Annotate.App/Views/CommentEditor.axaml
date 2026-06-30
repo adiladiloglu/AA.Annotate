@@ -1,32 +1,84 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="AA.Annotate.App.Views.CommentEditor">
-  <Border Padding="10"
-          CornerRadius="{StaticResource RadiusMedium}"
+  <Border Width="620"
+          Padding="12"
+          CornerRadius="{StaticResource RadiusLarge}"
           Background="{StaticResource CommentEditorBrush}"
           BorderBrush="{StaticResource OverlayBorderBrush}"
           BorderThickness="1">
-    <Grid ColumnDefinitions="360,36,36" ColumnSpacing="8">
+    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Border Width="20"
+                Height="20"
+                CornerRadius="10"
+                Background="#2416171A"
+                BorderBrush="#30FFFFFF"
+                BorderThickness="1">
+          <PathIcon Width="12"
+                    Height="12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Foreground="#E8EAED"
+                    Data="M4,5 L20,5 C21.1,5 22,5.9 22,7 L22,17 C22,18.1 21.1,19 20,19 L10,19 L6,23 L6,19 L4,19 C2.9,19 2,18.1 2,17 L2,7 C2,5.9 2.9,5 4,5 Z M5,8 L5,16 L19,16 L19,8 Z" />
+        </Border>
+        <TextBlock Grid.Column="1"
+                   Margin="8,0,0,0"
+                   Text="Annotation comment"
+                   Foreground="#F5F7FA"
+                   FontSize="12"
+                   FontWeight="SemiBold"
+                   VerticalAlignment="Center" />
+      </Grid>
       <Border Name="TextHostBorder"
+              Grid.Row="1"
               Classes="commentTextHost"
-              MinHeight="36"
-              MaxHeight="156">
+              MinHeight="42"
+              MaxHeight="130">
         <TextBox Name="CommentTextBox"
                  Classes="commentTextBox"
-                 Watermark="Comment"
+                 Background="Transparent"
+                 BorderBrush="Transparent"
+                 BorderThickness="0"
+                 Padding="0"
+                 FontSize="13"
+                 LineHeight="20"
+                 Watermark="Request change"
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 MinHeight="34"
-                 MaxHeight="154" />
+                 MinHeight="40"
+                 MaxHeight="128">
+          <TextBox.Resources>
+            <SolidColorBrush x:Key="TextControlBackground" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#002B2B2B" />
+            <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8AFFFFFF" />
+          </TextBox.Resources>
+        </TextBox>
       </Border>
-      <Button Name="DeleteButton" Grid.Column="1" Classes="iconButton" Width="36" Height="36" ToolTip.Tip="Delete">
-        <PathIcon Width="19" Height="19" Data="M8,3 L16,3 L17,5 L21,5 L21,7 L3,7 L3,5 L7,5 Z M5,9 L19,9 L18,21 C17.9,22.1 17.1,23 16,23 L8,23 C6.9,23 6.1,22.1 6,21 Z M9,11 L9,20 L11,20 L11,11 Z M13,11 L13,20 L15,20 L15,11 Z" />
-      </Button>
-      <Button Name="OkButton" Grid.Column="2" Classes="confirmButton" Width="36" Height="36" ToolTip.Tip="Save">
-        <PathIcon Width="20" Height="20" Data="M12,2 C6.5,2 2,6.5 2,12 C2,17.5 6.5,22 12,22 C17.5,22 22,17.5 22,12 C22,6.5 17.5,2 12,2 Z M10.2,16.3 L6.7,12.8 L8.1,11.4 L10.2,13.5 L15.9,7.8 L17.3,9.2 Z" />
-      </Button>
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+        <Button Name="DeleteButton"
+                Grid.Column="1"
+                Classes="iconButton"
+                Width="30"
+                Height="30"
+                ToolTip.Tip="Delete">
+          <PathIcon Width="15" Height="15" Data="M8,3 L16,3 L17,5 L21,5 L21,7 L3,7 L3,5 L7,5 Z M5,9 L19,9 L18,21 C17.9,22.1 17.1,23 16,23 L8,23 C6.9,23 6.1,22.1 6,21 Z M9,11 L9,20 L11,20 L11,11 Z M13,11 L13,20 L15,20 L15,11 Z" />
+        </Button>
+        <Button Name="CancelButton"
+                Grid.Column="2"
+                Classes="commentTextButton"
+                Content="Cancel" />
+        <Button Name="OkButton"
+                Grid.Column="3"
+                Classes="commentPrimaryButton"
+                Content="Comment" />
+      </Grid>
     </Grid>
   </Border>
 </UserControl>

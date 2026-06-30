@@ -11,16 +11,15 @@ namespace AA.Annotate.App.Views;
 
 public partial class AnnotationBoxControl : UserControl
 {
-    private const double RestOpacity = 0.34;
+    private const double RestOpacity = 0.46;
     private const double ActiveOpacity = 1;
-    private const double MinSize = 24;
     private bool _isDragging;
     private bool _isResizing;
     private bool _isPointerOver;
     private Point _dragStart;
     private Rect _origin;
 
-    public event EventHandler<AnnotationViewModel>? Selected;
+    public event EventHandler<AnnotationSelectionRequest>? Selected;
 
     public event EventHandler<RectInt>? RectChanged;
 
@@ -71,7 +70,7 @@ public partial class AnnotationBoxControl : UserControl
             return;
         }
 
-        Selected?.Invoke(this, Annotation);
+        Selected?.Invoke(this, new AnnotationSelectionRequest(Annotation, ToParentPoint(e)));
         _isDragging = true;
         CaptureStart(e);
         e.Handled = true;
@@ -96,7 +95,7 @@ public partial class AnnotationBoxControl : UserControl
             return;
         }
 
-        Selected?.Invoke(this, Annotation);
+        Selected?.Invoke(this, new AnnotationSelectionRequest(Annotation, ToParentPoint(e)));
         _isResizing = true;
         CaptureStart(e);
         e.Handled = true;
@@ -124,8 +123,9 @@ public partial class AnnotationBoxControl : UserControl
             next = new RectInt(
                 (int)Math.Round(_origin.X),
                 (int)Math.Round(_origin.Y),
-                Math.Max((int)MinSize, (int)Math.Round(_origin.Width + delta.X)),
-                Math.Max((int)MinSize, (int)Math.Round(_origin.Height + delta.Y)));
+                Math.Max(AnnotationRectPolicy.MinimumSize, (int)Math.Round(_origin.Width + delta.X)),
+                Math.Max(AnnotationRectPolicy.MinimumSize, (int)Math.Round(_origin.Height + delta.Y)));
+            next = AnnotationRectPolicy.ClampToBounds(next, GetParentBounds(parent));
             ApplyRect(next);
         }
         else
@@ -135,6 +135,7 @@ public partial class AnnotationBoxControl : UserControl
                 Math.Max(0, (int)Math.Round(_origin.Y + delta.Y)),
                 Math.Max(1, (int)Math.Round(_origin.Width)),
                 Math.Max(1, (int)Math.Round(_origin.Height)));
+            next = AnnotationRectPolicy.ClampToBounds(next, GetParentBounds(parent));
             Canvas.SetLeft(this, next.X);
             Canvas.SetTop(this, next.Y);
         }
@@ -169,6 +170,7 @@ public partial class AnnotationBoxControl : UserControl
         var active = Annotation?.IsSelected == true || _isPointerOver || _isDragging || _isResizing;
         var opacity = active ? ActiveOpacity : RestOpacity;
         BoxBorder.Opacity = opacity;
+        BoxBorder.BorderThickness = active ? new Thickness(2) : new Thickness(1.5);
         NumberBadge.Opacity = active ? ActiveOpacity : 0.55;
         ExportIndicator.Opacity = active ? ActiveOpacity : 0.72;
         ResizeHandle.Opacity = active ? ActiveOpacity : 0.18;
@@ -200,5 +202,25 @@ public partial class AnnotationBoxControl : UserControl
     private static double Read(double value)
     {
         return double.IsNaN(value) ? 0 : value;
+    }
+
+    private PointInt ToParentPoint(PointerPressedEventArgs e)
+    {
+        var point = Parent is Visual parent
+            ? e.GetPosition(parent)
+            : e.GetPosition(this);
+        return new PointInt((int)Math.Round(point.X), (int)Math.Round(point.Y));
+    }
+
+    private static SizeInt GetParentBounds(Visual parent)
+    {
+        if (parent is not Control control)
+        {
+            return new SizeInt(1, 1);
+        }
+
+        return new SizeInt(
+            Math.Max(1, (int)Math.Round(control.Bounds.Width)),
+            Math.Max(1, (int)Math.Round(control.Bounds.Height)));
     }
 }

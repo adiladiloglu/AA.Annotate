@@ -23,6 +23,30 @@ public sealed class CropWindowStateTests
     }
 
     [Fact]
+    public void IdleChromeDoesNotRenderCapturedSurface()
+    {
+        var renderSurface = InteractionSurfacePolicy.ShouldRenderCaptureSurface(
+            isDrawing: false,
+            AnnotationInteractionMode.CaptureDropdownOpen,
+            cropOverlayVisible: false,
+            commentEditorVisible: false);
+
+        Assert.False(renderSurface);
+    }
+
+    [Fact]
+    public void AnnotationModeRendersCapturedSurface()
+    {
+        var renderSurface = InteractionSurfacePolicy.ShouldRenderCaptureSurface(
+            isDrawing: false,
+            AnnotationInteractionMode.DrawingAnnotation,
+            cropOverlayVisible: false,
+            commentEditorVisible: false);
+
+        Assert.True(renderSurface);
+    }
+
+    [Fact]
     public void ConfiguredWindowSizeWinsOverStaleCompactBounds()
     {
         var viewport = ViewportSizeSelector.Select(

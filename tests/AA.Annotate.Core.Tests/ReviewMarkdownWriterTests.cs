@@ -25,7 +25,8 @@ public sealed class ReviewMarkdownWriterTests
                     new SizeInt(1920, 1080),
                     new RectInt(0, 0, 1920, 1080),
                     new RectInt(100, 120, 800, 600),
-                    [new Annotation("a1", 1, new RectInt(40, 40, 320, 90), "Explain this area.")])
+                    [new Annotation("a1", 1, new RectInt(40, 40, 320, 90), "Explain this area.", "captures/001/annotation-01.png")],
+                    "captures/001/annotated.png")
             ]);
 
         var markdown = ReviewMarkdownWriter.Write(session);
@@ -33,8 +34,10 @@ public sealed class ReviewMarkdownWriterTests
         Assert.Contains("# Annotation Review", markdown);
         Assert.Contains("## Capture 1", markdown);
         Assert.Contains("Image: captures/001/cropped.png", markdown);
+        Assert.Contains("Annotated image: captures/001/annotated.png", markdown);
         Assert.DoesNotContain("Full screenshot:", markdown);
         Assert.Contains("1. x=40, y=40, width=320, height=90", markdown);
+        Assert.Contains("   Image: captures/001/annotation-01.png", markdown);
         Assert.DoesNotContain("Full screenshot box:", markdown);
         Assert.Contains("Explain this area.", markdown);
     }

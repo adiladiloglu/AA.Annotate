@@ -7,16 +7,42 @@ namespace AA.Annotate.Core.Services;
 
 public sealed class SessionExporter
 {
+    private readonly IAnnotationArtifactWriter? _artifactWriter;
     private readonly JsonSerializerOptions _jsonOptions = SessionJsonOptions.Create();
+
+    public SessionExporter(IAnnotationArtifactWriter? artifactWriter = null)
+    {
+        _artifactWriter = artifactWriter;
+    }
 
     public async Task ExportAsync(SessionPaths paths, AnnotationSession session, CancellationToken cancellationToken = default)
     {
         var exportSession = NormalizeForExport(session);
+        exportSession = await WriteAnnotationArtifactsAsync(paths, exportSession, cancellationToken);
         Directory.CreateDirectory(paths.SessionFolder);
         await File.WriteAllTextAsync(paths.ReviewMarkdownPath, ReviewMarkdownWriter.Write(exportSession), cancellationToken);
 
         await using var stream = File.Create(paths.AnnotationsJsonPath);
         await JsonSerializer.SerializeAsync(stream, exportSession, _jsonOptions, cancellationToken);
+    }
+
+    private async Task<AnnotationSession> WriteAnnotationArtifactsAsync(
+        SessionPaths paths,
+        AnnotationSession session,
+        CancellationToken cancellationToken)
+    {
+        if (_artifactWriter is null)
+        {
+            return session;
+        }
+
+        var captures = new List<AnnotationCapture>(session.Captures.Count);
+        foreach (var capture in session.Captures)
+        {
+            captures.Add(await _artifactWriter.WriteAsync(paths, capture, cancellationToken));
+        }
+
+        return session with { Captures = captures };
     }
 
     private static AnnotationSession NormalizeForExport(AnnotationSession session)

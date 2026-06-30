@@ -1,5 +1,8 @@
 using System.Drawing.Imaging;
+using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
+using AA.Annotate.App.Services;
 using AA.Annotate.App.ViewModels;
 using AA.Annotate.App.Views;
 using AA.Annotate.Core.Geometry;
@@ -23,14 +26,16 @@ namespace AA.Annotate.App;
 
 public partial class MainWindow : Window
 {
-    private const int MinimumAnnotationSize = 12;
+    private const int MinimumAnnotationSize = AnnotationRectPolicy.MinimumSize;
+    private const string GitHubRepositoryUrl = "https://github.com/adiladiloglu/AA.Annotate";
     private static readonly TimeSpan ActivityWriteInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
     private readonly AnnotationSessionViewModel _session = new();
     private readonly SessionStore _store = new();
-    private readonly SessionExporter _exporter = new();
+    private readonly SessionExporter _exporter = new(new AnnotationArtifactWriter());
     private readonly IDisplayCatalog _displayCatalog = new WindowsDisplayCatalog();
     private readonly IScreenCaptureService _captureService = new WindowsScreenCaptureService();
+    private readonly HashSet<Control> _hoveredChromePanels = [];
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
     private readonly string? _providedSessionRoot;
@@ -43,6 +48,7 @@ public partial class MainWindow : Window
     private DisplayDescriptor? _activeDisplay;
     private Point _drawStart;
     private Border? _draftBox;
+    private Border? _draftWarning;
     private AnnotationViewModel? _commentTarget;
     private DateTimeOffset _lastActivityWriteUtc = DateTimeOffset.MinValue;
     private DateTimeOffset _lastUserActivityUtc = DateTimeOffset.UtcNow;
@@ -71,6 +77,10 @@ public partial class MainWindow : Window
         _providedSessionRoot = sessionRoot;
         _idleTimeout = idleTimeout;
         InitializeComponent();
+        ConfigureChromePanelHover(CommandBar);
+        ConfigureChromePanelHover(DisplayDropdown);
+        ConfigureChromePanelHover(CaptureDropdown);
+        ConfigureChromePanelHover(AboutPanel);
         Opened += OnOpened;
         Closing += OnClosing;
         AnnotationCanvas.PointerPressed += OnAnnotationPointerPressed;
@@ -82,6 +92,7 @@ public partial class MainWindow : Window
         CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
         CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
         CommandBar.FinishRequested += async (_, _) => await FinishAsync();
+        CommandBar.AboutRequested += (_, _) => ToggleAboutPanel();
         CommandBar.CancelRequested += async (_, _) => await CancelAsync();
         DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
         CaptureDropdown.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
@@ -103,6 +114,8 @@ public partial class MainWindow : Window
         IdleWarningContinueButton.Click += (_, _) => ContinueAfterIdleWarning();
         IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
         IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
+        AboutCloseButton.Click += (_, _) => CloseAboutPanel();
+        AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
         AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -115,6 +128,7 @@ public partial class MainWindow : Window
         SuppressNativeWindowBorder();
         PlaceOnPrimaryDisplay();
         await EnsureSessionAsync();
+        AboutVersionText.Text = CreateAboutVersionText();
         ResetIdleTimer();
         UpdateChrome();
         CommandBar.PlayStartupAttentionAnimation();
@@ -125,6 +139,52 @@ public partial class MainWindow : Window
         if (TryGetPlatformHandle()?.Handle is { } handle)
         {
             WindowsNativeWindowChrome.SuppressBorder(handle);
+        }
+    }
+
+    private void ConfigureChromePanelHover(Control panel)
+    {
+        panel.PointerEntered += (_, _) =>
+        {
+            _hoveredChromePanels.Add(panel);
+            UpdateChromePanelHoverState();
+        };
+        panel.PointerExited += (_, _) =>
+        {
+            _hoveredChromePanels.Remove(panel);
+            UpdateChromePanelHoverState();
+        };
+    }
+
+    private void UpdateChromePanelHoverState()
+    {
+        var isActive = _hoveredChromePanels.Any(panel => panel.IsVisible);
+        CommandBar.SetPanelHoverActive(isActive);
+        DisplayDropdown.SetPanelHoverActive(isActive);
+        CaptureDropdown.SetPanelHoverActive(isActive);
+        SetAboutPanelHoverActive(isActive);
+    }
+
+    private void SetAboutPanelHoverActive(bool isActive)
+    {
+        var panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
+        AboutPanel.Opacity = 1;
+        AboutPanel.Background = panelBrush;
+    }
+
+    private static void OpenGitHubRepository()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = GitHubRepositoryUrl,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // The link is informational if the shell cannot open a browser.
         }
     }
 
@@ -328,6 +388,29 @@ public partial class MainWindow : Window
 
         DisplayDropdown.IsVisible = !DisplayDropdown.IsVisible;
         CaptureDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
+        ApplyCurrentWindowMode();
+        UpdateChrome();
+    }
+
+    private void ToggleAboutPanel()
+    {
+        if (_isCapturing)
+        {
+            return;
+        }
+
+        AboutPanel.IsVisible = !AboutPanel.IsVisible;
+        DisplayDropdown.IsVisible = false;
+        CaptureDropdown.IsVisible = false;
+        CommentEditor.IsVisible = false;
+        ApplyCurrentWindowMode();
+        UpdateChrome();
+    }
+
+    private void CloseAboutPanel()
+    {
+        AboutPanel.IsVisible = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
     }
@@ -341,6 +424,7 @@ public partial class MainWindow : Window
 
         StoreCurrentCrop();
         DisplayDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         SetActiveDisplay(display, IsBlockingSurfaceActive());
@@ -366,6 +450,7 @@ public partial class MainWindow : Window
         _isCapturing = true;
         DisplayDropdown.IsVisible = false;
         CaptureDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility(forceHidden: true);
@@ -476,9 +561,11 @@ public partial class MainWindow : Window
         if (!_isAnnotationToggleActive)
         {
             _isDrawing = false;
+            SetChromeVisible(true);
             _session.Mode = AnnotationInteractionMode.Idle;
             CommentEditor.IsVisible = false;
             CropOverlay.IsVisible = false;
+            AboutPanel.IsVisible = false;
             RefreshCropMaskVisibility();
             ApplyCurrentWindowMode();
             UpdateChrome();
@@ -493,6 +580,7 @@ public partial class MainWindow : Window
 
         DisplayDropdown.IsVisible = false;
         CaptureDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility();
@@ -519,6 +607,27 @@ public partial class MainWindow : Window
             HasActiveCrop());
     }
 
+    private bool ShouldRenderCaptureSurface()
+    {
+        return _session.CurrentCapture is not null &&
+            InteractionSurfacePolicy.ShouldRenderCaptureSurface(
+                _isDrawing,
+                _session.Mode,
+                CropOverlay.IsVisible,
+                CommentEditor.IsVisible);
+    }
+
+    private void RefreshCaptureSurfaceVisibility()
+    {
+        var isVisible = ShouldRenderCaptureSurface();
+        ScreenshotSurface.IsVisible = isVisible;
+        AnnotationCanvas.IsVisible = isVisible;
+        if (!isVisible)
+        {
+            BlurredCropMask.IsVisible = false;
+        }
+    }
+
     private void ApplyCurrentWindowMode()
     {
         if (_activeDisplay is { } display)
@@ -529,7 +638,7 @@ public partial class MainWindow : Window
 
     private Rect MeasureVisibleChromeFootprint()
     {
-        var controls = new Control[] { CommandBar, DisplayDropdown, CaptureDropdown }
+        var controls = new Control[] { CommandBar, DisplayDropdown, CaptureDropdown, AboutPanel }
             .Where(control => control.IsVisible)
             .Select(GetCanvasBounds)
             .ToList();
@@ -631,6 +740,7 @@ public partial class MainWindow : Window
         _session.SelectedAnnotation = null;
         _commentTarget = null;
         _isDrawing = false;
+        SetChromeVisible(true);
         _isAnnotationToggleActive = false;
         _session.Mode = AnnotationInteractionMode.Idle;
         CommandBar.SetAnnotationActive(false);
@@ -638,6 +748,7 @@ public partial class MainWindow : Window
         BlurredCropMask.SetImage(null);
         BlurredCropMask.IsVisible = false;
         CommentEditor.IsVisible = false;
+        AboutPanel.IsVisible = false;
         CropOverlay.IsVisible = false;
         AnnotationCanvas.Children.Clear();
         UpdateChrome();
@@ -681,6 +792,7 @@ public partial class MainWindow : Window
             ? AnnotationInteractionMode.CaptureDropdownOpen
             : AnnotationInteractionMode.Idle;
         DisplayDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
     }
@@ -698,6 +810,7 @@ public partial class MainWindow : Window
             _isAnnotationToggleActive = false;
             CommandBar.SetAnnotationActive(false);
             _session.Mode = AnnotationInteractionMode.EditingCrop;
+            AboutPanel.IsVisible = false;
             if (_activeDisplay is { } display)
             {
                 SetActiveDisplay(display, fullscreen: true);
@@ -723,7 +836,7 @@ public partial class MainWindow : Window
 
     private void RefreshCropMaskVisibility(bool forceHidden = false)
     {
-        if (forceHidden || _session.CurrentCapture is null)
+        if (forceHidden || _session.CurrentCapture is null || !ShouldRenderCaptureSurface())
         {
             BlurredCropMask.IsVisible = false;
             return;
@@ -802,6 +915,7 @@ public partial class MainWindow : Window
         }
 
         _isDrawing = true;
+        SetChromeVisible(false);
         _drawStart = e.GetPosition(AnnotationCanvas);
         _draftBox = new Border
         {
@@ -812,6 +926,9 @@ public partial class MainWindow : Window
         Canvas.SetLeft(_draftBox, _drawStart.X);
         Canvas.SetTop(_draftBox, _drawStart.Y);
         AnnotationCanvas.Children.Add(_draftBox);
+        _draftWarning = CreateDraftWarning();
+        AnnotationCanvas.Children.Add(_draftWarning);
+        PositionDraftWarning(new RectInt((int)Math.Round(_drawStart.X), (int)Math.Round(_drawStart.Y), 0, 0));
         e.Pointer.Capture(AnnotationCanvas);
     }
 
@@ -823,12 +940,13 @@ public partial class MainWindow : Window
         }
 
         var current = e.GetPosition(AnnotationCanvas);
-        var left = Math.Min(_drawStart.X, current.X);
-        var top = Math.Min(_drawStart.Y, current.Y);
-        _draftBox.Width = Math.Abs(current.X - _drawStart.X);
-        _draftBox.Height = Math.Abs(current.Y - _drawStart.Y);
-        Canvas.SetLeft(_draftBox, left);
-        Canvas.SetTop(_draftBox, top);
+        var rect = CreateAnnotationRectFromDrag(current);
+        _draftBox.Width = rect.Width;
+        _draftBox.Height = rect.Height;
+        Canvas.SetLeft(_draftBox, rect.X);
+        Canvas.SetTop(_draftBox, rect.Y);
+        UpdateDraftBoxVisual(rect);
+        PositionDraftWarning(rect);
     }
 
     private void OnAnnotationPointerReleased(object? sender, PointerReleasedEventArgs e)
@@ -840,16 +958,19 @@ public partial class MainWindow : Window
 
         _isDrawing = false;
         e.Pointer.Capture(null);
-        var rect = new RectInt(
-            Math.Max(0, (int)Math.Round(Read(Canvas.GetLeft(_draftBox)))),
-            Math.Max(0, (int)Math.Round(Read(Canvas.GetTop(_draftBox)))),
-            Math.Max(1, (int)Math.Round(_draftBox.Width)),
-            Math.Max(1, (int)Math.Round(_draftBox.Height)));
+        var rect = CreateAnnotationRectFromDrag(e.GetPosition(AnnotationCanvas));
 
         AnnotationCanvas.Children.Remove(_draftBox);
         _draftBox = null;
+        if (_draftWarning is not null)
+        {
+            AnnotationCanvas.Children.Remove(_draftWarning);
+            _draftWarning = null;
+        }
 
-        if (rect.Width < MinimumAnnotationSize || rect.Height < MinimumAnnotationSize)
+        SetChromeVisible(true);
+
+        if (!AnnotationRectPolicy.IsMinimumSizeReached(rect, MinimumAnnotationSize))
         {
             return;
         }
@@ -879,7 +1000,7 @@ public partial class MainWindow : Window
         {
             var box = new AnnotationBoxControl();
             box.SetAnnotation(annotation);
-            box.Selected += (_, selected) => SelectAnnotation(selected);
+            box.Selected += (_, request) => SelectAnnotation(request);
             box.RectChanged += (_, _) =>
             {
                 PositionCommentEditor(annotation);
@@ -928,14 +1049,30 @@ public partial class MainWindow : Window
         CommentEditor.IsVisible = true;
         CommentEditor.Open(annotation.Comment);
         PositionCommentEditor(annotation);
+        RefreshCropMaskVisibility();
         UpdateChrome();
+    }
+
+    private void SelectAnnotation(AnnotationSelectionRequest request)
+    {
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        var selected = AnnotationSelectionPolicy.SelectAtPoint(
+            _session.CurrentCapture.Annotations,
+            _session.SelectedAnnotation,
+            request.Annotation,
+            request.Point);
+        SelectAnnotation(selected);
     }
 
     private void PositionCommentEditor(AnnotationViewModel annotation)
     {
         CommentEditor.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var editorWidth = Math.Max(456, CommentEditor.DesiredSize.Width);
-        var editorHeight = Math.Max(58, CommentEditor.DesiredSize.Height);
+        var editorWidth = Math.Max(620, CommentEditor.DesiredSize.Width);
+        var editorHeight = Math.Max(108, CommentEditor.DesiredSize.Height);
         var x = Math.Min(Math.Max(16, annotation.BoxRect.X + 12), Math.Max(16, Bounds.Width - editorWidth - 16));
         var y = Math.Min(Math.Max(16, annotation.BoxRect.Y + annotation.BoxRect.Height + 10), Math.Max(16, Bounds.Height - editorHeight - 16));
         Canvas.SetLeft(CommentEditor, x);
@@ -1162,6 +1299,7 @@ public partial class MainWindow : Window
 
     private void UpdateChrome()
     {
+        RefreshCaptureSurfaceVisibility();
         var canUseCaptureControls = CanUseCaptureControls();
         CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
         CommandBar.SetCaptureControlsEnabled(canUseCaptureControls);
@@ -1194,5 +1332,93 @@ public partial class MainWindow : Window
     private static double Read(double value)
     {
         return double.IsNaN(value) ? 0 : value;
+    }
+
+    private void SetChromeVisible(bool isVisible)
+    {
+        ChromeCanvas.IsVisible = isVisible;
+    }
+
+    private SizeInt GetAnnotationCanvasSize()
+    {
+        return new SizeInt(
+            Math.Max(1, (int)Math.Round(AnnotationCanvas.Bounds.Width > 0 ? AnnotationCanvas.Bounds.Width : Bounds.Width)),
+            Math.Max(1, (int)Math.Round(AnnotationCanvas.Bounds.Height > 0 ? AnnotationCanvas.Bounds.Height : Bounds.Height)));
+    }
+
+    private RectInt CreateAnnotationRectFromDrag(Point current)
+    {
+        return AnnotationRectPolicy.CreateFromDrag(
+            new PointInt((int)Math.Round(_drawStart.X), (int)Math.Round(_drawStart.Y)),
+            new PointInt((int)Math.Round(current.X), (int)Math.Round(current.Y)),
+            GetAnnotationCanvasSize());
+    }
+
+    private static string CreateAboutVersionText()
+    {
+        var version = typeof(MainWindow).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            version = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "unknown";
+        }
+
+        return $"v{version.Split('+')[0]}";
+    }
+
+    private void UpdateDraftBoxVisual(RectInt rect)
+    {
+        if (_draftBox is null)
+        {
+            return;
+        }
+
+        var isValid = AnnotationRectPolicy.IsMinimumSizeReached(rect, MinimumAnnotationSize);
+        _draftBox.BorderBrush = App.Current?.FindResource(isValid ? "AnnotationStrokeBrush" : "InvalidAnnotationStrokeBrush") as Avalonia.Media.IBrush;
+        _draftBox.Background = App.Current?.FindResource(isValid ? "AnnotationBrush" : "InvalidAnnotationBrush") as Avalonia.Media.IBrush;
+    }
+
+    private static Border CreateDraftWarning()
+    {
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(218, 31, 41, 55)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8, 4),
+            Child = new TextBlock
+            {
+                Text = $"Min {AnnotationRectPolicy.MinimumSize} x {AnnotationRectPolicy.MinimumSize} px",
+                Foreground = Brushes.White,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold
+            }
+        };
+    }
+
+    private void PositionDraftWarning(RectInt rect)
+    {
+        if (_draftWarning is null)
+        {
+            return;
+        }
+
+        _draftWarning.IsVisible = !AnnotationRectPolicy.IsMinimumSizeReached(rect, MinimumAnnotationSize);
+        if (!_draftWarning.IsVisible)
+        {
+            return;
+        }
+
+        _draftWarning.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var warningWidth = Math.Max(1, _draftWarning.DesiredSize.Width);
+        var warningHeight = Math.Max(1, _draftWarning.DesiredSize.Height);
+        var bounds = GetAnnotationCanvasSize();
+        var x = Math.Clamp(rect.X + rect.Width + 8, 0, Math.Max(0, bounds.Width - (int)Math.Ceiling(warningWidth)));
+        var y = Math.Clamp(rect.Y - (int)Math.Ceiling(warningHeight) - 6, 0, Math.Max(0, bounds.Height - (int)Math.Ceiling(warningHeight)));
+
+        Canvas.SetLeft(_draftWarning, x);
+        Canvas.SetTop(_draftWarning, y);
     }
 }
