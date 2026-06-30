@@ -86,7 +86,7 @@ function Install-CodexPlugin {
 
     New-Item -ItemType Directory -Path $pluginTarget -Force | Out-Null
 
-    foreach ($itemName in @('.codex-plugin', '.claude-plugin', 'app', 'cli', 'skills', 'manifest.json', 'README.txt')) {
+    foreach ($itemName in @('.codex-plugin', '.claude-plugin', 'app', 'cli', 'skills', 'manifest.json', 'README.txt', 'LICENSE')) {
         $source = Join-Path $PackageRoot $itemName
         if (Test-Path -LiteralPath $source) {
             Copy-Item -LiteralPath $source -Destination (Join-Path $pluginTarget $itemName) -Recurse

@@ -7,7 +7,7 @@
   },
   "homepage": "https://github.com/adiladiloglu/AA.Annotate",
   "repository": "https://github.com/adiladiloglu/AA.Annotate",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ai-agents",
     "annotation",

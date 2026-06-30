@@ -125,3 +125,7 @@ The bundled Codex skill is installed with the app package:
 ```
 
 Agent-facing workflow details are documented in [skills/aa-annotate/SKILL.md](skills/aa-annotate/SKILL.md).
+
+## License
+
+AA Annotate is licensed under the [Apache License 2.0](LICENSE).

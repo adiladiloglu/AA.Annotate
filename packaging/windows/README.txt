@@ -7,6 +7,10 @@ This package is distributed as:
 It installs the desktop app, CLI, and Codex skill together. The skill is not
 useful without the bundled executable.
 
+License:
+
+  Apache-2.0
+
 Install, user-local and non-invasive:
 
   powershell -ExecutionPolicy Bypass -File .\install.ps1

@@ -44,6 +44,7 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'skills\aa-annotate') -Destination (
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\install.ps1') -Destination (Join-Path $packageRoot 'install.ps1')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\uninstall.ps1') -Destination (Join-Path $packageRoot 'uninstall.ps1')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\windows\README.txt') -Destination (Join-Path $packageRoot 'README.txt')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $packageRoot 'LICENSE')
 
 $claudePluginSource = Join-Path $repoRoot '.claude-plugin'
 if (Test-Path -LiteralPath $claudePluginSource) {
@@ -59,6 +60,7 @@ $manifest = [ordered]@{
     name = 'aa-annotate'
     version = $Version
     packageKind = 'app-skill-bundle'
+    license = 'Apache-2.0'
     runtime = $Runtime
     selfContained = $SelfContained
     createdAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
