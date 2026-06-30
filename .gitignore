@@ -93,6 +93,7 @@ coverage/
 # Documentation output
 *.html
 *.pdf
+docs/Media/Usage.mp4
 
 # Mono
 *.pidb

@@ -13,9 +13,6 @@ It gives agents a small, reliable way to ask users for visual context: capture t
 If your Markdown viewer does not play embedded video, use the direct file link:
 [Watch the usage demo](docs/Media/Usage_4x.mp4)
 
-Original video:
-[Download the original usage demo](docs/Media/Usage.mp4)
-
 ## Screenshots
 
 ![AA Annotate capture workflow](docs/Media/im1.png)
