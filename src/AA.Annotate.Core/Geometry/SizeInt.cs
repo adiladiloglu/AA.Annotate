@@ -1,7 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace AA.Annotate.Core.Geometry;
 
 public readonly record struct SizeInt
 {
+    [JsonConstructor]
     public SizeInt(int width, int height)
     {
         if (width <= 0)
