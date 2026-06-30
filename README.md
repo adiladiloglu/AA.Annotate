@@ -4,6 +4,10 @@ AA Annotate is a Windows desktop overlay for collecting screenshot annotations d
 
 It gives agents a small, reliable way to ask users for visual context: capture the screen, crop the relevant area, draw numbered boxes, add comments, and return a generated handoff file to the waiting agent.
 
+## Usage Demo
+
+[Watch the usage demo](docs/Media/Usage.mp4)
+
 ## Features
 
 - Full-screen screenshot capture for the selected display.
