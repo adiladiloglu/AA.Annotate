@@ -99,8 +99,6 @@ REVIEW_MD=<session folder>\review.md
 ANNOTATIONS_JSON=<session folder>\annotations.json
 ```
 
-Agents should read `REVIEW_MD` first. Use `ANNOTATIONS_JSON` only when exact coordinates or structured metadata are required.
-
 ## User Workflow
 
 1. The agent opens AA Annotate.
