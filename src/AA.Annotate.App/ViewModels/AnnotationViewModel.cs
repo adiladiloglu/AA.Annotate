@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using AA.Annotate.Core.Geometry;
+using AA.Annotate.Core.Services;
 
 namespace AA.Annotate.App.ViewModels;
 
@@ -9,13 +10,16 @@ public sealed class AnnotationViewModel : INotifyPropertyChanged
     private RectInt _boxRect;
     private string _comment;
     private bool _isSelected;
+    private AnnotationCropExportState _exportState = AnnotationCropExportState.Included;
+    private bool _isPendingComment;
 
-    public AnnotationViewModel(string annotationId, int number, RectInt boxRect, string comment)
+    public AnnotationViewModel(string annotationId, int number, RectInt boxRect, string comment, bool isPendingComment = false)
     {
         AnnotationId = annotationId;
         Number = number;
         _boxRect = boxRect;
         _comment = comment;
+        _isPendingComment = isPendingComment;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -40,6 +44,18 @@ public sealed class AnnotationViewModel : INotifyPropertyChanged
     {
         get => _isSelected;
         set => SetField(ref _isSelected, value);
+    }
+
+    public AnnotationCropExportState ExportState
+    {
+        get => _exportState;
+        set => SetField(ref _exportState, value);
+    }
+
+    public bool IsPendingComment
+    {
+        get => _isPendingComment;
+        set => SetField(ref _isPendingComment, value);
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

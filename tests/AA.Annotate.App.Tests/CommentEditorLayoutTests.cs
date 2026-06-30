@@ -42,4 +42,16 @@ public sealed class CommentEditorLayoutTests
     {
         Assert.False(CommentEditor.IsCommitKey(Key.Enter, KeyModifiers.Shift));
     }
+
+    [Fact]
+    public void EscapeCancelsComment()
+    {
+        Assert.True(CommentEditor.IsCancelKey(Key.Escape));
+    }
+
+    [Fact]
+    public void EnterDoesNotCancelComment()
+    {
+        Assert.False(CommentEditor.IsCancelKey(Key.Enter));
+    }
 }

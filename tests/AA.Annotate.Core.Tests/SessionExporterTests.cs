@@ -80,16 +80,21 @@ public sealed class SessionExporterTests
         var capture = exported!.Captures.Single();
         Assert.Equal(new SizeInt(1920, 1080), capture.ScreenshotPixelSize);
         Assert.Equal(new RectInt(100, 100, 300, 200), capture.CropRect);
+        Assert.Equal("captures/001/cropped.png", capture.ScreenshotPath);
+        Assert.Equal("captures/001/cropped.png", capture.ThumbnailPath);
 
         var annotations = capture.Annotations;
         Assert.Equal(2, annotations.Count);
+        Assert.Equal([1, 2], annotations.Select(annotation => annotation.Number));
         Assert.DoesNotContain(annotations, annotation => annotation.AnnotationId == "outside");
         Assert.Equal(new RectInt(50, 20, 50, 40), annotations.Single(annotation => annotation.AnnotationId == "inside").BoxRect);
         Assert.Equal(new RectInt(0, 50, 30, 80), annotations.Single(annotation => annotation.AnnotationId == "partial").BoxRect);
 
         var markdown = await File.ReadAllTextAsync(paths.ReviewMarkdownPath);
         Assert.Contains("1. x=50, y=20, width=50, height=40", markdown);
-        Assert.Contains("3. x=0, y=50, width=30, height=80", markdown);
+        Assert.Contains("2. x=0, y=50, width=30, height=80", markdown);
+        Assert.DoesNotContain("3. x=", markdown);
+        Assert.DoesNotContain("Full screenshot:", markdown);
         Assert.DoesNotContain("outside crop", markdown);
         Assert.DoesNotContain("Full screenshot box:", markdown);
     }

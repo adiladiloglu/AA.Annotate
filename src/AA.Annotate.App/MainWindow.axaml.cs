@@ -88,8 +88,18 @@ public partial class MainWindow : Window
         CaptureDropdown.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
         CaptureDropdown.NewCaptureRequested += async (_, _) => await RequestCaptureAsync();
         CommentEditor.DeleteRequested += (_, _) => DeleteCommentTarget();
+        CommentEditor.CancelRequested += (_, _) => CancelCommentTarget();
         CommentEditor.SaveRequested += (_, text) => SaveCommentTarget(text);
-        CropOverlay.CropChanged += (_, crop) => BlurredCropMask.SetCrop(crop);
+        CropOverlay.CropChanged += (_, crop) =>
+        {
+            BlurredCropMask.SetCrop(crop);
+            if (_session.CurrentCapture is { } capture)
+            {
+                RememberCurrentViewport(capture);
+                CaptureCropProjector.CommitViewportCrop(capture, crop);
+                UpdateAnnotationExportStates(capture);
+            }
+        };
         IdleWarningContinueButton.Click += (_, _) => ContinueAfterIdleWarning();
         IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
         IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
@@ -741,6 +751,7 @@ public partial class MainWindow : Window
         {
             RememberCurrentViewport(_session.CurrentCapture);
             CaptureCropProjector.CommitViewportCrop(_session.CurrentCapture, CropOverlay.GetCrop());
+            UpdateAnnotationExportStates(_session.CurrentCapture);
         }
     }
 
@@ -847,7 +858,8 @@ public partial class MainWindow : Window
             Guid.NewGuid().ToString("N"),
             _session.CurrentCapture.GetNextAnnotationNumber(),
             rect,
-            string.Empty);
+            string.Empty,
+            isPendingComment: true);
 
         _session.CurrentCapture.Annotations.Add(annotation);
         SelectAnnotation(annotation);
@@ -862,16 +874,40 @@ public partial class MainWindow : Window
             return;
         }
 
+        UpdateAnnotationExportStates(_session.CurrentCapture);
         foreach (var annotation in _session.CurrentCapture.Annotations.OrderBy(item => item.Number))
         {
             var box = new AnnotationBoxControl();
             box.SetAnnotation(annotation);
             box.Selected += (_, selected) => SelectAnnotation(selected);
-            box.RectChanged += (_, _) => PositionCommentEditor(annotation);
+            box.RectChanged += (_, _) =>
+            {
+                PositionCommentEditor(annotation);
+                if (_session.CurrentCapture is { } currentCapture)
+                {
+                    UpdateAnnotationExportState(currentCapture, annotation);
+                }
+            };
             Canvas.SetLeft(box, annotation.BoxRect.X);
             Canvas.SetTop(box, annotation.BoxRect.Y);
             AnnotationCanvas.Children.Add(box);
         }
+    }
+
+    private void UpdateAnnotationExportStates(CaptureViewModel capture)
+    {
+        RememberCurrentViewport(capture);
+        foreach (var annotation in capture.Annotations)
+        {
+            UpdateAnnotationExportState(capture, annotation);
+        }
+    }
+
+    private void UpdateAnnotationExportState(CaptureViewModel capture, AnnotationViewModel annotation)
+    {
+        var crop = ClampCrop(capture.CropPixelRect, capture.ScreenshotPixelSize);
+        var pixelBox = ToPixelRect(annotation.BoxRect, capture);
+        annotation.ExportState = AnnotationCropPolicy.Classify(pixelBox, crop).State;
     }
 
     private void SelectAnnotation(AnnotationViewModel annotation)
@@ -920,6 +956,33 @@ public partial class MainWindow : Window
         RefreshAnnotations();
     }
 
+    private void CancelCommentTarget()
+    {
+        if (_commentTarget is null)
+        {
+            return;
+        }
+
+        if (_session.CurrentCapture is not null &&
+            CommentEditCancelPolicy.SelectAction(_commentTarget.IsPendingComment) == CommentEditCancelAction.DeleteAnnotation)
+        {
+            _session.CurrentCapture.Annotations.Remove(_commentTarget);
+            _commentTarget = null;
+            _session.SelectedAnnotation = null;
+            CommentEditor.IsVisible = false;
+            ReturnAfterCommentEdit();
+            RefreshAnnotations();
+            return;
+        }
+
+        _commentTarget.IsSelected = false;
+        _session.SelectedAnnotation = null;
+        _commentTarget = null;
+        CommentEditor.IsVisible = false;
+        ReturnAfterCommentEdit();
+        RefreshAnnotations();
+    }
+
     private void SaveCommentTarget(string text)
     {
         if (_commentTarget is null)
@@ -928,6 +991,7 @@ public partial class MainWindow : Window
         }
 
         _commentTarget.Comment = text.Trim();
+        _commentTarget.IsPendingComment = false;
         _commentTarget.IsSelected = false;
         _session.SelectedAnnotation = null;
         CommentEditor.IsVisible = false;
@@ -968,9 +1032,19 @@ public partial class MainWindow : Window
         StopIdleTimers();
         var session = BuildExportSession();
         await _exporter.ExportAsync(_paths, session);
+        DeleteCroppedCaptureSourceFiles();
         await _store.MarkCompletedAsync(_paths, "review.md", "annotations.json");
         _hasTerminalStatus = true;
         Close();
+    }
+
+    private void DeleteCroppedCaptureSourceFiles()
+    {
+        foreach (var capture in _session.Captures.Where(CaptureCropProjector.IsCropped))
+        {
+            TryDeleteFile(capture.ScreenshotPath);
+            TryDeleteFile(capture.ThumbnailPath);
+        }
     }
 
     private async Task CancelAsync()
@@ -1008,6 +1082,7 @@ public partial class MainWindow : Window
         if (_commentTarget is not null && CommentEditor.IsVisible)
         {
             _commentTarget.Comment = CommentEditor.CurrentText.Trim();
+            _commentTarget.IsPendingComment = false;
         }
     }
 

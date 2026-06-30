@@ -18,6 +18,18 @@
                  FontWeight="SemiBold"
                  Foreground="White" />
     </Border>
+    <Border Name="ExportIndicator"
+            Width="18"
+            Height="18"
+            CornerRadius="9"
+            IsVisible="False">
+      <TextBlock Name="ExportIndicatorText"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 FontWeight="Bold"
+                 Foreground="White" />
+    </Border>
     <Border Name="ResizeHandle"
             Width="12"
             Height="12"

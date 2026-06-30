@@ -33,6 +33,7 @@ public sealed class ReviewMarkdownWriterTests
         Assert.Contains("# Annotation Review", markdown);
         Assert.Contains("## Capture 1", markdown);
         Assert.Contains("Image: captures/001/cropped.png", markdown);
+        Assert.DoesNotContain("Full screenshot:", markdown);
         Assert.Contains("1. x=40, y=40, width=320, height=90", markdown);
         Assert.DoesNotContain("Full screenshot box:", markdown);
         Assert.Contains("Explain this area.", markdown);

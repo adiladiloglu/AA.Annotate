@@ -40,29 +40,28 @@ public sealed class SessionExporter
             .Select(annotation => TryClipAnnotation(annotation, crop))
             .Where(annotation => annotation is not null)
             .Select(annotation => annotation!)
+            .Select((annotation, index) => annotation with { Number = index + 1 })
             .ToList();
 
         return capture with
         {
+            ScreenshotPath = capture.CroppedPath ?? capture.ScreenshotPath,
+            ThumbnailPath = capture.CroppedPath ?? capture.ThumbnailPath,
             Annotations = annotations
         };
     }
 
     private static Annotation? TryClipAnnotation(Annotation annotation, RectInt crop)
     {
-        var left = Math.Max(annotation.BoxRect.X, crop.X);
-        var top = Math.Max(annotation.BoxRect.Y, crop.Y);
-        var right = Math.Min(annotation.BoxRect.Right, crop.Right);
-        var bottom = Math.Min(annotation.BoxRect.Bottom, crop.Bottom);
-
-        if (right <= left || bottom <= top)
+        var result = AnnotationCropPolicy.Classify(annotation.BoxRect, crop);
+        if (result.ExportBoxRect is not { } exportBoxRect)
         {
             return null;
         }
 
         return annotation with
         {
-            BoxRect = new RectInt(left - crop.X, top - crop.Y, right - left, bottom - top)
+            BoxRect = exportBoxRect
         };
     }
 }

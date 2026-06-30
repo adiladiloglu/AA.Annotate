@@ -1,8 +1,10 @@
 using AA.Annotate.App.ViewModels;
 using AA.Annotate.Core.Geometry;
+using AA.Annotate.Core.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
 using System.ComponentModel;
 
 namespace AA.Annotate.App.Views;
@@ -46,6 +48,7 @@ public partial class AnnotationBoxControl : UserControl
         Annotation.PropertyChanged += OnAnnotationPropertyChanged;
         NumberText.Text = annotation.Number.ToString();
         ApplyRect(annotation.BoxRect);
+        UpdateExportIndicator();
         UpdateVisualState();
     }
 
@@ -55,6 +58,8 @@ public partial class AnnotationBoxControl : UserControl
         Height = rect.Height;
         BoxBorder.Width = rect.Width;
         BoxBorder.Height = rect.Height;
+        Canvas.SetLeft(ExportIndicator, Math.Max(0, rect.Width - 10));
+        Canvas.SetTop(ExportIndicator, -8);
         Canvas.SetLeft(ResizeHandle, Math.Max(0, rect.Width - 6));
         Canvas.SetTop(ResizeHandle, Math.Max(0, rect.Height - 6));
     }
@@ -152,6 +157,11 @@ public partial class AnnotationBoxControl : UserControl
         {
             UpdateVisualState();
         }
+        else if (e.PropertyName == nameof(AnnotationViewModel.ExportState))
+        {
+            UpdateExportIndicator();
+            UpdateVisualState();
+        }
     }
 
     private void UpdateVisualState()
@@ -160,7 +170,31 @@ public partial class AnnotationBoxControl : UserControl
         var opacity = active ? ActiveOpacity : RestOpacity;
         BoxBorder.Opacity = opacity;
         NumberBadge.Opacity = active ? ActiveOpacity : 0.55;
+        ExportIndicator.Opacity = active ? ActiveOpacity : 0.72;
         ResizeHandle.Opacity = active ? ActiveOpacity : 0.18;
+    }
+
+    private void UpdateExportIndicator()
+    {
+        if (Annotation is null || Annotation.ExportState == AnnotationCropExportState.Included)
+        {
+            ExportIndicator.IsVisible = false;
+            ToolTip.SetTip(ExportIndicator, null);
+            return;
+        }
+
+        ExportIndicator.IsVisible = true;
+        if (Annotation.ExportState == AnnotationCropExportState.Clipped)
+        {
+            ExportIndicatorText.Text = "!";
+            ExportIndicator.Background = new SolidColorBrush(Color.Parse("#CCB45309"));
+            ToolTip.SetTip(ExportIndicator, "Will be clipped on export");
+            return;
+        }
+
+        ExportIndicatorText.Text = "X";
+        ExportIndicator.Background = new SolidColorBrush(Color.Parse("#CC7F1D1D"));
+        ToolTip.SetTip(ExportIndicator, "Will be excluded on export");
     }
 
     private static double Read(double value)

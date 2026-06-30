@@ -16,7 +16,6 @@ public static class ReviewMarkdownWriter
             builder.AppendLine($"## Capture {capture.Number}");
             builder.AppendLine();
             builder.AppendLine($"Image: {capture.CroppedPath ?? capture.ScreenshotPath}");
-            builder.AppendLine($"Full screenshot: {capture.ScreenshotPath}");
             builder.AppendLine(capture.CropRect is { } crop
                 ? $"Crop: x={crop.X}, y={crop.Y}, width={crop.Width}, height={crop.Height}"
                 : "Crop: none");

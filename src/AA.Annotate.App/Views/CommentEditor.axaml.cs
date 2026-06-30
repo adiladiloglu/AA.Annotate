@@ -8,6 +8,8 @@ public partial class CommentEditor : UserControl
 {
     public event EventHandler? DeleteRequested;
 
+    public event EventHandler? CancelRequested;
+
     public event EventHandler<string>? SaveRequested;
 
     public string CurrentText => CommentTextBox.Text ?? string.Empty;
@@ -33,6 +35,13 @@ public partial class CommentEditor : UserControl
 
     private void OnCommentTextBoxKeyDown(object? sender, KeyEventArgs e)
     {
+        if (IsCancelKey(e.Key))
+        {
+            e.Handled = true;
+            CancelRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         if (e.Key != Key.Enter)
         {
             return;
@@ -51,6 +60,11 @@ public partial class CommentEditor : UserControl
     internal static bool IsCommitKey(Key key, KeyModifiers modifiers)
     {
         return key == Key.Enter && !modifiers.HasFlag(KeyModifiers.Shift);
+    }
+
+    internal static bool IsCancelKey(Key key)
+    {
+        return key == Key.Escape;
     }
 
     private void InsertLineBreak()

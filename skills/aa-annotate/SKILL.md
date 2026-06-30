@@ -1,81 +1,130 @@
 ---
 name: aa-annotate
-description: Launch the AA Annotate desktop overlay to collect visual screenshot annotations from the user and then continue from the generated review. Use when a task needs the user to point at UI elements, mark regions on screen, compare windows/tabs, crop screenshots, or provide visual context that text alone cannot describe.
+description: Launch the AA Annotate desktop overlay to collect visual screenshot annotations from the user and continue from the exported handoff. Use when a task needs the user to point at UI elements, mark screen regions, compare windows or tabs, crop screenshots, or provide visual context that text alone cannot describe.
 ---
 
 # AA Annotate
 
-Use AA Annotate when the next step depends on the user's visual selection or comments on what is currently on their screen.
+Use AA Annotate when the task depends on the user's visual selection or comments on their screen.
 
-## Workflow
+## Start a Session
 
-1. Choose the first available CLI path in this order.
+Tell the user the annotation window is opening and that you will wait while they capture, crop, annotate, and send the session back.
 
-   If this skill is loaded from a release-bundled Codex plugin, resolve the directory containing this `SKILL.md`; the plugin root is two directories up. Use this path only when the executable exists:
+Use the first available launch method:
 
-   ```powershell
-   & "<plugin-root>\cli\aa-annotate.exe" session --wait --timeout-seconds 60
-   ```
-
-   If the app was installed from the release installer, use:
+1. Release-bundled Codex plugin: resolve the directory containing this `SKILL.md`; the plugin root is two directories up.
 
    ```powershell
-   & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
+   & "<plugin-root>\cli\aa-annotate.exe" session --wait
    ```
 
-   If the user asks to store annotation sessions in a specific folder, add:
+2. User-local install:
 
    ```powershell
-   --session-root "<folder>"
+   & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
    ```
 
-   If the repo-local Windows publish output is available, run:
+3. Repo-local packaged output, from the repository root:
 
    ```powershell
-   & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait --timeout-seconds 60
+   & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait
    ```
 
-   If `aa-annotate` was registered on `PATH`, this is also valid:
+4. Registered on `PATH`:
 
    ```powershell
-   aa-annotate session --wait --timeout-seconds 60
+   aa-annotate session --wait
    ```
 
-   If the CLI is not installed but the source repo is available for development, run:
+5. Development source fallback, from the repository root. Build first so the CLI can resolve the desktop app from the app project's output.
 
    ```powershell
-   dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait --timeout-seconds 60
+   dotnet build AA.Annotate.slnx -v minimal
    ```
 
-   If none of these CLI paths exists, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the executable.
-
-2. Before starting the blocking command, tell the user that the annotation window is opening and that you will wait for them to capture, crop, annotate, and send the session back.
-
-3. Start the annotation session and wait for completion. If your shell/tool call requires its own timeout, make it longer than the expected human annotation session. Do not set the outer command timeout to 60 seconds; `--timeout-seconds 60` is the app inactivity period and resets while the user interacts with the app.
-
-4. When the command exits, read stdout:
-
-   ```text
-   SESSION_STATUS=completed
-   REVIEW_MD=...
-   ANNOTATIONS_JSON=...
+   ```powershell
+   dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait
    ```
 
-   If stdout contains `SESSION_STATUS=error`, read `ERROR_MESSAGE` and report that the annotation session failed.
+Add `--session-root "<folder>"` only when the user asks to store session files somewhere specific. Otherwise let AA Annotate use the OS temp directory.
 
-5. Read `REVIEW_MD` first. Treat it as the primary agent-facing handoff. It contains captures, crop information, annotation numbers, comments, and image paths.
+Use a shell/tool timeout longer than the expected human annotation time. If `--timeout-seconds` is omitted, the CLI uses 600 seconds. `--timeout-seconds` controls app inactivity and the CLI waiter's inactivity bound, and resets while the user interacts with the app. The outer shell/tool timeout is separate and must be longer than the AA Annotate inactivity window plus expected user time. Use a shorter value such as 60 seconds only for deliberate short tests.
 
-6. Read `ANNOTATIONS_JSON` only when exact structured coordinates or full session metadata are needed.
+If the outer shell/tool times out before AA Annotate returns, report that the agent-side wait timed out or rerun the same launch method with a longer outer timeout. Do not infer completion from private session files.
 
-7. Continue the task using the user's annotation text and numbered boxes. When reporting back, reference annotation numbers rather than asking the user to restate them.
+If no executable path exists, tell the user the AA Annotate release bundle must be installed. A skill-only install is not enough.
 
-## Rules
+## Read Completion
 
-- Do not create screenshot or annotation files in the workspace unless the user explicitly asks. Let the tool use its default OS temp session folder.
-- Do not continue as if annotations exist when `SESSION_STATUS` is `cancelled` or `error`; tell the user the session did not complete.
-- Do not default to `session.json` or other private local state. Use `review.md` first, then `annotations.json` if structured data is required.
-- Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. This one-minute inactivity period is the recommended agent workflow.
-- Pass `--session-root <folder>` when the user wants session files stored somewhere other than the default OS temp location.
-- If `--timeout-seconds` is omitted, the CLI uses a ten-minute inactivity period. The app resets the timer when the user interacts with it and shows a finite warning before closing an inactive session.
-- Keep any outer agent command timeout longer than the app inactivity timeout plus expected user annotation time.
-- If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.
+When the command exits, inspect stdout even if the process exit code is nonzero. Cancelled and errored sessions return a nonzero exit code.
+
+Completed sessions print:
+
+```text
+SESSION_STATUS=completed
+REVIEW_MD=<path>
+ANNOTATIONS_JSON=<path>
+```
+
+If `SESSION_STATUS=cancelled`, stop and tell the user the session was cancelled.
+
+If `SESSION_STATUS=error`, read `ERROR_MESSAGE` and report the failure. Do not continue as if annotations exist.
+
+If stdout lacks `SESSION_STATUS`, if `SESSION_STATUS=completed` lacks `REVIEW_MD` or `ANNOTATIONS_JSON`, or if either exported file is missing, treat the handoff as malformed and report a launch/artifact error. Do not guess artifact paths.
+
+## Interpret Artifacts
+
+Read `REVIEW_MD` first. It is the normal agent entrypoint.
+
+Use `ANNOTATIONS_JSON` only when exact structured metadata is needed.
+
+For each `## Capture N` in `REVIEW_MD`:
+
+- Treat it as a separate screen state.
+- Open the `Image:` path when visual confirmation matters.
+- Resolve relative image paths from the folder containing `REVIEW_MD`.
+- Treat `Image:` as the primary source of truth. If the user cropped, this image is the cropped image; the full screenshot is not exported for normal use.
+- Treat every annotation line as relative to the `Image:` path shown in that capture.
+- Apply the indented comment immediately below an annotation line to that numbered rectangle.
+- Do not merge annotation numbers across captures.
+
+Annotation lines use this form:
+
+```text
+1. x=<left>, y=<top>, width=<width>, height=<height>
+   <comment>
+```
+
+Coordinate rules:
+
+- For an uncropped capture, coordinates are relative to the full-screen `Image:`.
+- For a cropped capture, coordinates are relative to the cropped `Image:`.
+- `Crop:` is metadata in original screenshot coordinates. Use it only when you must map a cropped annotation back to original screen coordinates.
+- If `Crop:` describes a non-full crop but `Image:` points at an uncropped full screenshot, treat the handoff as inconsistent and report an artifact error instead of guessing coordinate basis.
+- Export removes annotations fully outside the crop.
+- Export clips annotations partly crossing the crop edge.
+- Export renumbers remaining annotations sequentially inside each capture after filtering. These numbers may differ from temporary numbers the user saw while editing.
+
+JSON rules:
+
+- `captures[].screenshotPath` is the primary exported image path to inspect.
+- `captures[].croppedPath` is present when the primary image came from a crop.
+- `captures[].cropRect` records the crop in original screenshot coordinates.
+- `captures[].annotations[].boxRect` follows the same coordinate basis as `REVIEW_MD`: it is relative to the primary exported image.
+- `captures[].screenshotPixelSize` describes the original capture size, not necessarily the dimensions of a cropped primary image.
+- Resolve relative JSON image paths from the folder containing `ANNOTATIONS_JSON`.
+
+## Use the Result
+
+Continue the task using the annotation comments and numbered regions.
+
+Reference annotations by capture and number, for example `Capture 2, annotation 1`.
+
+If a comment and its box appear inconsistent, trust the visual `Image:` plus the box first, then state the ambiguity instead of inventing intent.
+
+Do not read or rely on `session.json`, `status.json`, or other private local state unless debugging launch/completion failure.
+
+Do not create screenshots or annotation files in the workspace unless the user explicitly asks.
+
+If launch fails from a plugin, check whether `<plugin-root>\app\AA.Annotate.App.exe` exists. If launch fails from a user-local install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local packaged output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. Use `AA_ANNOTATE_APP` only for custom app paths.
