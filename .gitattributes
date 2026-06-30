@@ -1,1 +1,2 @@
 *.mp4 filter=lfs diff=lfs merge=lfs -text
+docs/Media/Usage_4x.mp4 -filter -diff -merge -text
