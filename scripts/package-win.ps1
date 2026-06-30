@@ -71,7 +71,7 @@ $manifest = [ordered]@{
     uninstall = 'uninstall.ps1'
     defaultInstallRoot = '%LOCALAPPDATA%/AA.Annotate'
     defaultSkillPath = '%USERPROFILE%/.codex/skills/aa-annotate'
-    pluginMetadata = '.claude-plugin/plugin.json'
+    pluginMetadata = '.codex-plugin/plugin.json'
     claudePluginMetadata = '.claude-plugin/plugin.json'
     codexPluginMetadata = '.codex-plugin/plugin.json'
 }

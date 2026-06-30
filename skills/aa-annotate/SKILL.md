@@ -9,9 +9,9 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 
 ## Workflow
 
-1. Start an annotation session and wait for completion.
+1. Choose the first available CLI path in this order.
 
-   If this skill is loaded from the bundled Codex plugin, resolve the directory containing this `SKILL.md`; the plugin root is two directories up, and the preferred CLI path is:
+   If this skill is loaded from a release-bundled Codex plugin, resolve the directory containing this `SKILL.md`; the plugin root is two directories up. Use this path only when the executable exists:
 
    ```powershell
    & "<plugin-root>\cli\aa-annotate.exe" session --wait --timeout-seconds 60
@@ -47,9 +47,13 @@ Use AA Annotate when the next step depends on the user's visual selection or com
    dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait --timeout-seconds 60
    ```
 
-2. Tell the user that the annotation window is open and wait for them to capture, crop, annotate, and send the session back.
+   If none of these CLI paths exists, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the executable.
 
-3. When the command exits, read stdout:
+2. Before starting the blocking command, tell the user that the annotation window is opening and that you will wait for them to capture, crop, annotate, and send the session back.
+
+3. Start the annotation session and wait for completion. If your shell/tool call requires its own timeout, make it longer than the expected human annotation session. Do not set the outer command timeout to 60 seconds; `--timeout-seconds 60` is the app inactivity period and resets while the user interacts with the app.
+
+4. When the command exits, read stdout:
 
    ```text
    SESSION_STATUS=completed
@@ -59,11 +63,11 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 
    If stdout contains `SESSION_STATUS=error`, read `ERROR_MESSAGE` and report that the annotation session failed.
 
-4. Read `REVIEW_MD` first. Treat it as the primary agent-facing handoff. It contains captures, crop information, annotation numbers, comments, and image paths.
+5. Read `REVIEW_MD` first. Treat it as the primary agent-facing handoff. It contains captures, crop information, annotation numbers, comments, and image paths.
 
-5. Read `ANNOTATIONS_JSON` only when exact structured coordinates or full session metadata are needed.
+6. Read `ANNOTATIONS_JSON` only when exact structured coordinates or full session metadata are needed.
 
-6. Continue the task using the user's annotation text and numbered boxes. When reporting back, reference annotation numbers rather than asking the user to restate them.
+7. Continue the task using the user's annotation text and numbered boxes. When reporting back, reference annotation numbers rather than asking the user to restate them.
 
 ## Rules
 
@@ -73,5 +77,5 @@ Use AA Annotate when the next step depends on the user's visual selection or com
 - Pass `--timeout-seconds 60` unless there is a specific reason to use a different inactivity period. This one-minute inactivity period is the recommended agent workflow.
 - Pass `--session-root <folder>` when the user wants session files stored somewhere other than the default OS temp location.
 - If `--timeout-seconds` is omitted, the CLI uses a ten-minute inactivity period. The app resets the timer when the user interacts with it and shows a finite warning before closing an inactive session.
-- If neither the plugin-local CLI nor the installed CLI path exists, tell the user to install the AA Annotate GitHub Release bundle. Do not treat a skill-only install as complete; the skill requires the executable.
+- Keep any outer agent command timeout longer than the app inactivity timeout plus expected user annotation time.
 - If the app fails to launch from a packaged install, check whether `%LOCALAPPDATA%\AA.Annotate\app\AA.Annotate.App.exe` exists. For repo-local publish output, check whether `artifacts\publish\app-win-x64\AA.Annotate.App.exe` exists. `AA_ANNOTATE_APP` is optional and should only be needed for custom app paths.
