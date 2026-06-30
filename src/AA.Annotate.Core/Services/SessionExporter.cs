@@ -62,7 +62,7 @@ public sealed class SessionExporter
 
         return annotation with
         {
-            BoxRect = new RectInt(left, top, right - left, bottom - top)
+            BoxRect = new RectInt(left - crop.X, top - crop.Y, right - left, bottom - top)
         };
     }
 }

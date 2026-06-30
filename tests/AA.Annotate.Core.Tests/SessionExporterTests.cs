@@ -84,12 +84,13 @@ public sealed class SessionExporterTests
         var annotations = capture.Annotations;
         Assert.Equal(2, annotations.Count);
         Assert.DoesNotContain(annotations, annotation => annotation.AnnotationId == "outside");
-        Assert.Equal(new RectInt(150, 120, 50, 40), annotations.Single(annotation => annotation.AnnotationId == "inside").BoxRect);
-        Assert.Equal(new RectInt(100, 150, 30, 80), annotations.Single(annotation => annotation.AnnotationId == "partial").BoxRect);
+        Assert.Equal(new RectInt(50, 20, 50, 40), annotations.Single(annotation => annotation.AnnotationId == "inside").BoxRect);
+        Assert.Equal(new RectInt(0, 50, 30, 80), annotations.Single(annotation => annotation.AnnotationId == "partial").BoxRect);
 
         var markdown = await File.ReadAllTextAsync(paths.ReviewMarkdownPath);
         Assert.Contains("1. x=50, y=20, width=50, height=40", markdown);
         Assert.Contains("3. x=0, y=50, width=30, height=80", markdown);
         Assert.DoesNotContain("outside crop", markdown);
+        Assert.DoesNotContain("Full screenshot box:", markdown);
     }
 }

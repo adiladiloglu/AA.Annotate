@@ -24,20 +24,8 @@ public static class ReviewMarkdownWriter
 
             foreach (var annotation in capture.Annotations.OrderBy(annotation => annotation.Number))
             {
-                var rect = capture.CroppedPath is not null && capture.CropRect is { } activeCrop
-                    ? new(
-                        annotation.BoxRect.X - activeCrop.X,
-                        annotation.BoxRect.Y - activeCrop.Y,
-                        annotation.BoxRect.Width,
-                        annotation.BoxRect.Height)
-                    : annotation.BoxRect;
+                var rect = annotation.BoxRect;
                 builder.AppendLine($"{annotation.Number}. x={rect.X}, y={rect.Y}, width={rect.Width}, height={rect.Height}");
-                if (capture.CroppedPath is not null)
-                {
-                    var fullRect = annotation.BoxRect;
-                    builder.AppendLine($"   Full screenshot box: x={fullRect.X}, y={fullRect.Y}, width={fullRect.Width}, height={fullRect.Height}");
-                }
-
                 builder.AppendLine($"   {annotation.Comment}");
             }
 
