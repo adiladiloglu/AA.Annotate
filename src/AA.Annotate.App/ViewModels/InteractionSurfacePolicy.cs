@@ -13,6 +13,7 @@ public static class InteractionSurfacePolicy
         return isCapturing ||
             isDrawing ||
             mode is AnnotationInteractionMode.DrawingAnnotation or
+                AnnotationInteractionMode.DrawingPrivacyMask or
                 AnnotationInteractionMode.EditingCrop or
                 AnnotationInteractionMode.AnnotationSelected ||
             cropOverlayVisible ||
@@ -30,6 +31,7 @@ public static class InteractionSurfacePolicy
             cropOverlayVisible ||
             commentEditorVisible ||
             mode is AnnotationInteractionMode.DrawingAnnotation or
+                AnnotationInteractionMode.DrawingPrivacyMask or
                 AnnotationInteractionMode.EditingCrop or
                 AnnotationInteractionMode.AnnotationSelected;
     }

@@ -2,7 +2,7 @@
 
 AA Annotate is a Windows desktop overlay for collecting screenshot annotations during AI agent sessions.
 
-It gives agents a small, reliable way to ask users for visual context: capture the screen, crop the relevant area, draw numbered boxes, add comments, and return a generated handoff file to the waiting agent.
+It gives agents a small, reliable way to request visual context: capture the screen, crop the relevant area, mask private regions, draw numbered boxes, add comments, and return a generated handoff file.
 
 ## Usage Demo
 
@@ -19,8 +19,11 @@ It gives agents a small, reliable way to ask users for visual context: capture t
 - Full-screen screenshot capture for the selected display.
 - Multi-capture sessions for different windows, tabs, displays, or application states.
 - Crop support with blurred out-of-scope regions.
+- Privacy masks that permanently redact selected regions in exported images.
 - Numbered annotation boxes with comments.
-- Session output stored under the OS temp directory by default.
+- Export image scaling from 20% to 100% with presets for smaller handoff payloads.
+- Private working files stored under the OS temp directory by default.
+- Final agent-facing exports stored separately from private working files.
 - Agent-facing `review.md` handoff plus structured annotation data.
 - Bundled Codex skill and command-line launcher.
 
@@ -84,11 +87,13 @@ Agents should launch AA Annotate through the bundled CLI:
 & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --timeout-seconds 60
 ```
 
-To store sessions somewhere other than the OS temp directory, pass a session root:
+To store final exported handoff files somewhere specific, pass an output root:
 
 ```powershell
-& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --session-root "D:\AA Annotate Sessions"
+& "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --output "D:\AA Annotate Exports"
 ```
+
+`--session-root` is for controlling private working files while debugging AA Annotate itself. Normal agent workflows should use `--output` when they need a custom final export location.
 
 Command help:
 
@@ -101,18 +106,35 @@ When the session completes, the CLI prints:
 
 ```text
 SESSION_STATUS=completed
-REVIEW_MD=<session folder>\review.md
-ANNOTATIONS_JSON=<session folder>\annotations.json
+REVIEW_MD=<export folder>\review.md
+ANNOTATIONS_JSON=<export folder>\annotations.json
 ```
+
+The printed paths point to the final export folder. Agents should not inspect private working files while the annotation window is still open. The final export images are the agent-facing source of truth; private original captures are not part of the normal handoff.
 
 ## User Workflow
 
 1. The agent opens AA Annotate.
 2. The user captures the relevant screen.
 3. The user crops the capture if only part of the screen matters.
-4. The user draws numbered annotation boxes.
-5. The user adds comments.
-6. The user sends the session back to the waiting agent.
+4. The user draws privacy masks over sensitive regions.
+5. The user sets export scale when full-resolution images are unnecessary.
+6. The user draws numbered annotation boxes.
+7. The user adds comments.
+8. The user completes the session and exports the handoff.
+
+## Export Behavior
+
+AA Annotate applies export operations in this order:
+
+1. Crop filtering and coordinate normalization.
+2. Privacy mask redaction.
+3. Image scaling.
+4. Annotated overview and annotation crop generation.
+
+Privacy masks are exported as black rectangles labeled `Privacy mask`. The label is part of the exported image so downstream agents can distinguish intentional redaction from missing image content.
+
+When export scale is below 100%, exported images and exported coordinates use the scaled image dimensions. Original unscaled working captures are private session files and are not part of the normal agent handoff.
 
 ## Agent Skill
 

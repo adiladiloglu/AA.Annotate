@@ -19,6 +19,7 @@ public sealed class SessionCommandTests
         Assert.Contains("Usage: aa-annotate session", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("--session-root <folder>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("--timeout-seconds <seconds>", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Default: 60", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -34,7 +35,27 @@ public sealed class SessionCommandTests
 
         Assert.Equal(0, exitCode);
         Assert.StartsWith(root, launcher.SessionFolder, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains($"SESSION_FOLDER={launcher.SessionFolder}", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("SESSION_FOLDER=", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunKeepsOutputSeparateFromPrivateSessionRoot()
+    {
+        var output = new StringWriter();
+        var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
+        var launcher = new RecordingLauncher();
+        var command = new SessionCommand(output, store, launcher);
+        var sessionRoot = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"), "work");
+        var outputRoot = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"), "export");
+
+        var exitCode = await command.RunAsync(["session", "--session-root", sessionRoot, "--output", outputRoot]);
+
+        Assert.Equal(0, exitCode);
+        Assert.NotNull(launcher.SessionFolder);
+        Assert.NotNull(launcher.ExportFolder);
+        Assert.StartsWith(sessionRoot, launcher.SessionFolder, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(outputRoot, launcher.ExportFolder, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual(launcher.SessionFolder, launcher.ExportFolder, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -48,7 +69,7 @@ public sealed class SessionCommandTests
             new ThrowingLauncher("simulated launch failure"));
         var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
 
-        var exitCode = await command.RunAsync(["session", "--wait", "--output", root]);
+        var exitCode = await command.RunAsync(["session", "--wait", "--session-root", root]);
 
         Assert.Equal(1, exitCode);
         var sessionFolder = Directory.GetDirectories(root).Single();
@@ -68,14 +89,14 @@ public sealed class SessionCommandTests
         var command = new SessionCommand(output, store, launcher);
         var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
 
-        var exitCode = await command.RunAsync(["session", "--output", root, "--timeout-seconds", "60"]);
+        var exitCode = await command.RunAsync(["session", "--session-root", root, "--timeout-seconds", "60"]);
 
         Assert.Equal(0, exitCode);
         Assert.Equal(TimeSpan.FromSeconds(60), launcher.IdleTimeout);
     }
 
     [Fact]
-    public async Task RunUsesTenMinuteDefaultTimeoutWhenOptionIsOmitted()
+    public async Task RunUsesOneMinuteDefaultTimeoutWhenOptionIsOmitted()
     {
         var output = new StringWriter();
         var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
@@ -83,10 +104,10 @@ public sealed class SessionCommandTests
         var command = new SessionCommand(output, store, launcher);
         var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
 
-        var exitCode = await command.RunAsync(["session", "--output", root]);
+        var exitCode = await command.RunAsync(["session", "--session-root", root]);
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(TimeSpan.FromMinutes(10), launcher.IdleTimeout);
+        Assert.Equal(TimeSpan.FromMinutes(1), launcher.IdleTimeout);
     }
 
     private sealed class ThrowingLauncher(string message) : AppLauncher
@@ -96,7 +117,7 @@ public sealed class SessionCommandTests
             return @"C:\Missing\AA.Annotate.App.exe";
         }
 
-        public override Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
+        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
         {
             throw new FileNotFoundException(message);
         }
@@ -106,16 +127,18 @@ public sealed class SessionCommandTests
     {
         public TimeSpan? IdleTimeout { get; private set; }
         public string? SessionFolder { get; private set; }
+        public string? ExportFolder { get; private set; }
 
         public override string ResolveExecutablePath()
         {
             return @"C:\Tools\AA.Annotate.App.exe";
         }
 
-        public override Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
+        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
         {
             IdleTimeout = idleTimeout;
             SessionFolder = sessionFolder;
+            ExportFolder = exportFolder;
             return Process.GetCurrentProcess();
         }
     }

@@ -27,6 +27,7 @@ namespace AA.Annotate.App;
 public partial class MainWindow : Window
 {
     private const int MinimumAnnotationSize = AnnotationRectPolicy.MinimumSize;
+    private const double CompactChromeClipPadding = 24;
     private const string GitHubRepositoryUrl = "https://github.com/adiladiloglu/AA.Annotate";
     private static readonly TimeSpan ActivityWriteInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
@@ -38,13 +39,16 @@ public partial class MainWindow : Window
     private readonly HashSet<Control> _hoveredChromePanels = [];
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
+    private readonly string? _providedExportFolder;
     private readonly string? _providedSessionRoot;
+    private readonly string? _providedExportRoot;
     private SessionPaths? _paths;
     private SessionStatusDocument? _status;
     private bool _isCapturing;
     private bool _isDrawing;
     private bool _hasTerminalStatus;
     private bool _isAnnotationToggleActive;
+    private bool _isPrivacyMaskToggleActive;
     private DisplayDescriptor? _activeDisplay;
     private Point _drawStart;
     private Border? _draftBox;
@@ -57,24 +61,31 @@ public partial class MainWindow : Window
     private DispatcherTimer? _idleWarningTimer;
 
     public MainWindow()
-        : this(null, null, null)
+        : this(null, null, null, null, null)
     {
     }
 
     public MainWindow(string? sessionFolder)
-        : this(sessionFolder, null, null)
+        : this(sessionFolder, null, null, null, null)
     {
     }
 
     public MainWindow(string? sessionFolder, TimeSpan? idleTimeout)
-        : this(sessionFolder, null, idleTimeout)
+        : this(sessionFolder, null, null, null, idleTimeout)
     {
     }
 
-    public MainWindow(string? sessionFolder, string? sessionRoot, TimeSpan? idleTimeout)
+    public MainWindow(
+        string? sessionFolder,
+        string? exportFolder,
+        string? sessionRoot,
+        string? exportRoot,
+        TimeSpan? idleTimeout)
     {
         _providedSessionFolder = sessionFolder;
+        _providedExportFolder = exportFolder;
         _providedSessionRoot = sessionRoot;
+        _providedExportRoot = exportRoot;
         _idleTimeout = idleTimeout;
         InitializeComponent();
         ConfigureChromePanelHover(CommandBar);
@@ -90,7 +101,9 @@ public partial class MainWindow : Window
         CommandBar.CaptureRequested += async (_, _) => await RequestCaptureAsync();
         CommandBar.CaptureSelectorRequested += (_, _) => ToggleCaptureDropdown();
         CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
+        CommandBar.PrivacyMaskRequested += async (_, _) => await ActivatePrivacyMaskAsync();
         CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
+        CommandBar.ExportScaleChanged += (_, percent) => SetExportScalePercent(percent);
         CommandBar.FinishRequested += async (_, _) => await FinishAsync();
         CommandBar.AboutRequested += (_, _) => ToggleAboutPanel();
         CommandBar.CancelRequested += async (_, _) => await CancelAsync();
@@ -192,17 +205,26 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(_providedSessionFolder))
         {
-            _paths = await _store.CreateSessionAsync(_providedSessionRoot);
+            _paths = await _store.CreateSessionAsync(_providedSessionRoot, _providedExportRoot);
             _status = await _store.ReadStatusAsync(_paths);
             return;
         }
 
         Directory.CreateDirectory(_providedSessionFolder);
         Directory.CreateDirectory(Path.Combine(_providedSessionFolder, "captures"));
-        _paths = SessionPaths.FromFolder(_providedSessionFolder);
+        var exportFolder = _providedExportFolder ?? CreateDefaultExportFolder(_providedSessionFolder);
+        Directory.CreateDirectory(exportFolder);
+        Directory.CreateDirectory(Path.Combine(exportFolder, "captures"));
+        _paths = SessionPaths.FromFolder(_providedSessionFolder, exportFolder);
         _status = File.Exists(_paths.StatusJsonPath)
             ? await _store.ReadStatusAsync(_paths)
             : await InitializeProvidedSessionAsync(_paths);
+    }
+
+    private static string CreateDefaultExportFolder(string sessionFolder)
+    {
+        var sessionId = Path.GetFileName(sessionFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", sessionId);
     }
 
     private static async Task<SessionStatusDocument> InitializeProvidedSessionAsync(SessionPaths paths)
@@ -342,7 +364,7 @@ public partial class MainWindow : Window
 
     private bool HasAnyAnnotations()
     {
-        return _session.Captures.Any(capture => capture.Annotations.Count > 0);
+        return _session.Captures.Any(capture => capture.Annotations.Count > 0 || capture.PrivacyMasks.Count > 0);
     }
 
     private void PlaceOnPrimaryDisplay()
@@ -375,8 +397,8 @@ public partial class MainWindow : Window
         Position = new PixelPoint(
             bounds.X + (int)Math.Round(footprint.X * scaling),
             bounds.Y + (int)Math.Round(footprint.Y * scaling));
-        Width = footprint.Width;
-        Height = footprint.Height;
+        Width = Math.Ceiling(footprint.Width + CompactChromeClipPadding);
+        Height = Math.Ceiling(footprint.Height + CompactChromeClipPadding);
     }
 
     private void ToggleDisplayDropdown()
@@ -462,9 +484,9 @@ public partial class MainWindow : Window
         await Task.Delay(180);
 
         var number = _session.Captures.Count + 1;
-        var screenshotPath = Path.Combine(_paths.CapturesFolder, $"{number:00}-screen.png");
+        var screenshotPath = Path.Combine(_paths.WorkingCapturesFolder, $"{number:00}-screen.png");
         var captured = await _captureService.CaptureScreenAsync(display, screenshotPath);
-        var thumbnailPath = Path.Combine(_paths.CapturesFolder, $"{number:00}-thumb.png");
+        var thumbnailPath = Path.Combine(_paths.WorkingCapturesFolder, $"{number:00}-thumb.png");
         File.Copy(captured.ScreenshotPath, thumbnailPath, overwrite: true);
 
         Show();
@@ -547,6 +569,28 @@ public partial class MainWindow : Window
         ToggleAnnotationMode();
     }
 
+    private async Task ActivatePrivacyMaskAsync()
+    {
+        var hadCapture = _session.CurrentCapture is not null;
+        if (CaptureDependentToolPolicy.SelectAction(hadCapture) == CaptureDependentToolAction.CaptureFirst)
+        {
+            await CaptureAsync(activateAnnotationAfterCapture: false);
+        }
+
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        if (!hadCapture)
+        {
+            SetPrivacyMaskMode(true);
+            return;
+        }
+
+        TogglePrivacyMaskMode();
+    }
+
     private void ToggleAnnotationMode()
     {
         SetAnnotationMode(!_isAnnotationToggleActive);
@@ -556,6 +600,12 @@ public partial class MainWindow : Window
     {
         StoreCurrentCrop();
         _isAnnotationToggleActive = isActive && _session.CurrentCapture is not null;
+        if (_isAnnotationToggleActive)
+        {
+            _isPrivacyMaskToggleActive = false;
+            CommandBar.SetPrivacyMaskActive(false);
+        }
+
         CommandBar.SetAnnotationActive(_isAnnotationToggleActive);
 
         if (!_isAnnotationToggleActive)
@@ -585,6 +635,58 @@ public partial class MainWindow : Window
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility();
         UpdateChrome();
+    }
+
+    private void TogglePrivacyMaskMode()
+    {
+        SetPrivacyMaskMode(!_isPrivacyMaskToggleActive);
+    }
+
+    private void SetPrivacyMaskMode(bool isActive)
+    {
+        StoreCurrentCrop();
+        _isPrivacyMaskToggleActive = isActive && _session.CurrentCapture is not null;
+        if (_isPrivacyMaskToggleActive)
+        {
+            _isAnnotationToggleActive = false;
+            CommandBar.SetAnnotationActive(false);
+        }
+
+        CommandBar.SetPrivacyMaskActive(_isPrivacyMaskToggleActive);
+
+        if (!_isPrivacyMaskToggleActive)
+        {
+            _isDrawing = false;
+            SetChromeVisible(true);
+            _session.Mode = AnnotationInteractionMode.Idle;
+            CommentEditor.IsVisible = false;
+            CropOverlay.IsVisible = false;
+            AboutPanel.IsVisible = false;
+            RefreshCropMaskVisibility();
+            ApplyCurrentWindowMode();
+            UpdateChrome();
+            return;
+        }
+
+        _session.Mode = AnnotationInteractionMode.DrawingPrivacyMask;
+        if (_activeDisplay is { } display)
+        {
+            SetActiveDisplay(display, fullscreen: true);
+        }
+
+        DisplayDropdown.IsVisible = false;
+        CaptureDropdown.IsVisible = false;
+        AboutPanel.IsVisible = false;
+        CommentEditor.IsVisible = false;
+        CropOverlay.IsVisible = false;
+        RefreshCropMaskVisibility();
+        UpdateChrome();
+    }
+
+    private void SetExportScalePercent(int percent)
+    {
+        _session.ExportScalePercent = ExportScalePercentParser.Clamp(percent);
+        CommandBar.SetExportScalePercent(_session.ExportScalePercent);
     }
 
     private DisplayDescriptor GetDisplayContainingWindow()
@@ -651,8 +753,8 @@ public partial class MainWindow : Window
     private static Rect GetCanvasBounds(Control control)
     {
         control.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var width = control.Bounds.Width > 0 ? control.Bounds.Width : control.DesiredSize.Width;
-        var height = control.Bounds.Height > 0 ? control.Bounds.Height : control.DesiredSize.Height;
+        var width = control.DesiredSize.Width > 0 ? control.DesiredSize.Width : control.Bounds.Width;
+        var height = control.DesiredSize.Height > 0 ? control.DesiredSize.Height : control.Bounds.Height;
         return new Rect(
             Read(Canvas.GetLeft(control)),
             Read(Canvas.GetTop(control)),
@@ -742,8 +844,10 @@ public partial class MainWindow : Window
         _isDrawing = false;
         SetChromeVisible(true);
         _isAnnotationToggleActive = false;
+        _isPrivacyMaskToggleActive = false;
         _session.Mode = AnnotationInteractionMode.Idle;
         CommandBar.SetAnnotationActive(false);
+        CommandBar.SetPrivacyMaskActive(false);
         ScreenshotSurface.SetImage(null);
         BlurredCropMask.SetImage(null);
         BlurredCropMask.IsVisible = false;
@@ -793,8 +897,8 @@ public partial class MainWindow : Window
             : AnnotationInteractionMode.Idle;
         DisplayDropdown.IsVisible = false;
         AboutPanel.IsVisible = false;
-        ApplyCurrentWindowMode();
         UpdateChrome();
+        ApplyCurrentWindowMode();
     }
 
     private void ToggleCropOverlay()
@@ -808,7 +912,9 @@ public partial class MainWindow : Window
         if (isOpening)
         {
             _isAnnotationToggleActive = false;
+            _isPrivacyMaskToggleActive = false;
             CommandBar.SetAnnotationActive(false);
+            CommandBar.SetPrivacyMaskActive(false);
             _session.Mode = AnnotationInteractionMode.EditingCrop;
             AboutPanel.IsVisible = false;
             if (_activeDisplay is { } display)
@@ -877,6 +983,7 @@ public partial class MainWindow : Window
     {
         if (_session.Mode is AnnotationInteractionMode.Editing or
             AnnotationInteractionMode.DrawingAnnotation or
+            AnnotationInteractionMode.DrawingPrivacyMask or
             AnnotationInteractionMode.EditingCrop or
             AnnotationInteractionMode.AnnotationSelected)
         {
@@ -909,7 +1016,8 @@ public partial class MainWindow : Window
 
     private void OnAnnotationPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_session.CurrentCapture is null || _session.Mode != AnnotationInteractionMode.DrawingAnnotation)
+        if (_session.CurrentCapture is null ||
+            _session.Mode is not (AnnotationInteractionMode.DrawingAnnotation or AnnotationInteractionMode.DrawingPrivacyMask))
         {
             return;
         }
@@ -917,12 +1025,7 @@ public partial class MainWindow : Window
         _isDrawing = true;
         SetChromeVisible(false);
         _drawStart = e.GetPosition(AnnotationCanvas);
-        _draftBox = new Border
-        {
-            BorderBrush = App.Current?.FindResource("AnnotationStrokeBrush") as Avalonia.Media.IBrush,
-            Background = App.Current?.FindResource("AnnotationBrush") as Avalonia.Media.IBrush,
-            BorderThickness = new Thickness(2)
-        };
+        _draftBox = CreateDraftBox();
         Canvas.SetLeft(_draftBox, _drawStart.X);
         Canvas.SetTop(_draftBox, _drawStart.Y);
         AnnotationCanvas.Children.Add(_draftBox);
@@ -930,6 +1033,36 @@ public partial class MainWindow : Window
         AnnotationCanvas.Children.Add(_draftWarning);
         PositionDraftWarning(new RectInt((int)Math.Round(_drawStart.X), (int)Math.Round(_drawStart.Y), 0, 0));
         e.Pointer.Capture(AnnotationCanvas);
+    }
+
+    private Border CreateDraftBox()
+    {
+        if (_session.Mode == AnnotationInteractionMode.DrawingPrivacyMask)
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(230, 0, 0, 0)),
+                BorderBrush = Brushes.White,
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(2),
+                Child = new TextBlock
+                {
+                    Text = "Privacy mask",
+                    Foreground = Brushes.White,
+                    FontSize = 12,
+                    FontWeight = FontWeight.SemiBold,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                }
+            };
+        }
+
+        return new Border
+        {
+            BorderBrush = App.Current?.FindResource("AnnotationStrokeBrush") as Avalonia.Media.IBrush,
+            Background = App.Current?.FindResource("AnnotationBrush") as Avalonia.Media.IBrush,
+            BorderThickness = new Thickness(2)
+        };
     }
 
     private void OnAnnotationPointerMoved(object? sender, PointerEventArgs e)
@@ -975,15 +1108,25 @@ public partial class MainWindow : Window
             return;
         }
 
-        var annotation = new AnnotationViewModel(
-            Guid.NewGuid().ToString("N"),
-            _session.CurrentCapture.GetNextAnnotationNumber(),
-            rect,
-            string.Empty,
-            isPendingComment: true);
+        if (_session.Mode == AnnotationInteractionMode.DrawingPrivacyMask)
+        {
+            _session.CurrentCapture.PrivacyMasks.Add(new PrivacyMaskViewModel(
+                Guid.NewGuid().ToString("N"),
+                rect));
+        }
+        else
+        {
+            var annotation = new AnnotationViewModel(
+                Guid.NewGuid().ToString("N"),
+                _session.CurrentCapture.GetNextAnnotationNumber(),
+                rect,
+                string.Empty,
+                isPendingComment: true);
 
-        _session.CurrentCapture.Annotations.Add(annotation);
-        SelectAnnotation(annotation);
+            _session.CurrentCapture.Annotations.Add(annotation);
+            SelectAnnotation(annotation);
+        }
+
         RefreshAnnotations();
     }
 
@@ -996,6 +1139,26 @@ public partial class MainWindow : Window
         }
 
         UpdateAnnotationExportStates(_session.CurrentCapture);
+        foreach (var privacyMask in _session.CurrentCapture.PrivacyMasks)
+        {
+            var mask = new PrivacyMaskBoxControl();
+            mask.SetMask(privacyMask);
+            mask.RectChanged += (_, _) => { };
+            mask.DeleteRequested += (_, _) =>
+            {
+                if (_session.CurrentCapture is null)
+                {
+                    return;
+                }
+
+                _session.CurrentCapture.PrivacyMasks.Remove(privacyMask);
+                RefreshAnnotations();
+            };
+            Canvas.SetLeft(mask, privacyMask.BoxRect.X);
+            Canvas.SetTop(mask, privacyMask.BoxRect.Y);
+            AnnotationCanvas.Children.Add(mask);
+        }
+
         foreach (var annotation in _session.CurrentCapture.Annotations.OrderBy(item => item.Number))
         {
             var box = new AnnotationBoxControl();
@@ -1045,6 +1208,8 @@ public partial class MainWindow : Window
 
         _session.SelectedAnnotation = annotation;
         _session.Mode = AnnotationInteractionMode.AnnotationSelected;
+        _isPrivacyMaskToggleActive = false;
+        CommandBar.SetPrivacyMaskActive(false);
         _commentTarget = annotation;
         CommentEditor.IsVisible = true;
         CommentEditor.Open(annotation.Comment);
@@ -1169,19 +1334,15 @@ public partial class MainWindow : Window
         StopIdleTimers();
         var session = BuildExportSession();
         await _exporter.ExportAsync(_paths, session);
-        DeleteCroppedCaptureSourceFiles();
-        await _store.MarkCompletedAsync(_paths, "review.md", "annotations.json");
+        DeleteRawCaptureSourceFiles();
+        await _store.MarkCompletedAsync(_paths, _paths.ReviewMarkdownPath, _paths.AnnotationsJsonPath);
         _hasTerminalStatus = true;
         Close();
     }
 
-    private void DeleteCroppedCaptureSourceFiles()
+    private void DeleteRawCaptureSourceFiles()
     {
-        foreach (var capture in _session.Captures.Where(CaptureCropProjector.IsCropped))
-        {
-            TryDeleteFile(capture.ScreenshotPath);
-            TryDeleteFile(capture.ThumbnailPath);
-        }
+        CaptureSourceCleaner.DeleteRawSources(_session.Captures, _session.ExportScalePercent);
     }
 
     private async Task CancelAsync()
@@ -1255,7 +1416,11 @@ public partial class MainWindow : Window
                     annotation.Number,
                     ToPixelRect(annotation.BoxRect, capture),
                     annotation.Comment))
-                .ToList());
+                .ToList(),
+            PrivacyMasks: capture.PrivacyMasks
+                .Select(mask => new PrivacyMask(mask.MaskId, ToPixelRect(mask.BoxRect, capture)))
+                .ToList(),
+            ExportScalePercent: _session.ExportScalePercent);
     }
 
     private RectInt ToPixelRect(RectInt viewRect, CaptureViewModel capture)
@@ -1275,7 +1440,7 @@ public partial class MainWindow : Window
         }
 
         var crop = ClampCrop(cropRect, capture.ScreenshotPixelSize);
-        var cropPath = Path.Combine(_paths.CapturesFolder, $"{capture.Number:00}-crop.png");
+        var cropPath = Path.Combine(_paths.WorkingCapturesFolder, $"{capture.Number:00}-crop.png");
         using var source = new DrawingBitmap(capture.ScreenshotPath);
         using var target = new DrawingBitmap(crop.Width, crop.Height);
         using var graphics = DrawingGraphics.FromImage(target);
@@ -1302,10 +1467,15 @@ public partial class MainWindow : Window
         RefreshCaptureSurfaceVisibility();
         var canUseCaptureControls = CanUseCaptureControls();
         CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
+        CommandBar.SetExportScalePercent(_session.ExportScalePercent);
         CommandBar.SetCaptureControlsEnabled(canUseCaptureControls);
         CaptureDropdown.SetCaptures(_session.Captures);
         CaptureDropdown.SetCanCreateCapture(canUseCaptureControls);
         DisplayDropdown.SetDisplays(CreateDisplayViewModels());
+        if (CaptureDropdown.IsVisible)
+        {
+            Dispatcher.UIThread.Post(ApplyCurrentWindowMode);
+        }
     }
 
     private bool CanUseCaptureControls()
@@ -1371,6 +1541,14 @@ public partial class MainWindow : Window
     {
         if (_draftBox is null)
         {
+            return;
+        }
+
+        if (_session.Mode == AnnotationInteractionMode.DrawingPrivacyMask)
+        {
+            _draftBox.BorderBrush = AnnotationRectPolicy.IsMinimumSizeReached(rect, MinimumAnnotationSize)
+                ? Brushes.White
+                : App.Current?.FindResource("InvalidAnnotationStrokeBrush") as Avalonia.Media.IBrush;
             return;
         }
 

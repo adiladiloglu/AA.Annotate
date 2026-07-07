@@ -6,6 +6,7 @@ public enum AnnotationInteractionMode
     Capturing,
     Editing,
     DrawingAnnotation,
+    DrawingPrivacyMask,
     EditingCrop,
     AnnotationSelected,
     CaptureDropdownOpen,

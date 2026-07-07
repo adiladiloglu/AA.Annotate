@@ -9,10 +9,12 @@ using DrawingFont = System.Drawing.Font;
 using DrawingFontStyle = System.Drawing.FontStyle;
 using DrawingGraphics = System.Drawing.Graphics;
 using DrawingGraphicsUnit = System.Drawing.GraphicsUnit;
+using DrawingInterpolationMode = System.Drawing.Drawing2D.InterpolationMode;
 using DrawingPen = System.Drawing.Pen;
 using DrawingRectangle = System.Drawing.Rectangle;
 using DrawingSolidBrush = System.Drawing.SolidBrush;
 using DrawingStringFormat = System.Drawing.StringFormat;
+using DrawingStringTrimming = System.Drawing.StringTrimming;
 
 namespace AA.Annotate.App.Services;
 
@@ -24,47 +26,149 @@ public sealed class AnnotationArtifactWriter : IAnnotationArtifactWriter
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (capture.Annotations.Count == 0)
-        {
-            return Task.FromResult(capture);
-        }
 
         Directory.CreateDirectory(paths.CapturesFolder);
         using var source = new DrawingBitmap(capture.ScreenshotPath);
-        var annotatedPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-annotated.png");
-        WriteAnnotatedOverview(source, capture, annotatedPath);
+        using var exportedSource = CreateExportedSource(source, capture);
+        var annotations = ScaleAnnotations(capture.Annotations, capture.ExportScalePercent);
+        var privacyMasks = ScalePrivacyMasks(capture.PrivacyMasks, capture.ExportScalePercent);
+        var primaryPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-export.png");
+        exportedSource.Save(primaryPath, ImageFormat.Png);
+        var croppedPath = string.IsNullOrWhiteSpace(capture.CroppedPath) ? null : primaryPath;
+        var thumbnailPath = primaryPath;
 
-        var annotations = new List<Annotation>(capture.Annotations.Count);
-        foreach (var annotation in capture.Annotations.OrderBy(item => item.Number))
+        if (annotations.Count == 0)
+        {
+            return Task.FromResult(capture with
+            {
+                ScreenshotPath = primaryPath,
+                CroppedPath = croppedPath,
+                ThumbnailPath = thumbnailPath,
+                PrivacyMasks = privacyMasks,
+                ExportScalePercent = ClampScalePercent(capture.ExportScalePercent)
+            });
+        }
+
+        var annotatedPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-annotated.png");
+        WriteAnnotatedOverview(exportedSource, annotations, annotatedPath);
+
+        var exportedAnnotations = new List<Annotation>(annotations.Count);
+        foreach (var annotation in annotations.OrderBy(item => item.Number))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var rect = ClampRect(annotation.BoxRect, source.Width, source.Height);
+            var rect = ClampRect(annotation.BoxRect, exportedSource.Width, exportedSource.Height);
             if (rect.Width < AnnotationCropPolicy.MinimumExportBoxSize ||
                 rect.Height < AnnotationCropPolicy.MinimumExportBoxSize)
             {
-                annotations.Add(annotation);
+                exportedAnnotations.Add(annotation);
                 continue;
             }
 
             var annotationPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-annotation-{annotation.Number:00}.png");
-            WriteAnnotationImage(source, rect, annotationPath);
-            annotations.Add(annotation with { ImagePath = annotationPath });
+            WriteAnnotationImage(exportedSource, rect, annotationPath);
+            exportedAnnotations.Add(annotation with { ImagePath = annotationPath });
         }
 
         return Task.FromResult(capture with
         {
+            ScreenshotPath = primaryPath,
+            CroppedPath = croppedPath,
+            ThumbnailPath = thumbnailPath,
             AnnotatedImagePath = annotatedPath,
-            Annotations = annotations
+            Annotations = exportedAnnotations,
+            PrivacyMasks = privacyMasks,
+            ExportScalePercent = ClampScalePercent(capture.ExportScalePercent)
         });
     }
 
-    private static void WriteAnnotatedOverview(DrawingBitmap source, AnnotationCapture capture, string path)
+    private static DrawingBitmap CreateExportedSource(DrawingBitmap source, AnnotationCapture capture)
+    {
+        var scalePercent = ClampScalePercent(capture.ExportScalePercent);
+        using var redacted = new DrawingBitmap(source.Width, source.Height);
+        using (var graphics = DrawingGraphics.FromImage(redacted))
+        {
+            graphics.DrawImage(source, 0, 0, source.Width, source.Height);
+            foreach (var mask in capture.PrivacyMasks ?? [])
+            {
+                DrawPrivacyMask(graphics, mask.BoxRect, source.Width, source.Height);
+            }
+        }
+
+        if (scalePercent == 100)
+        {
+            return new DrawingBitmap(redacted);
+        }
+
+        var width = Math.Max(1, (int)Math.Round(redacted.Width * scalePercent / 100d));
+        var height = Math.Max(1, (int)Math.Round(redacted.Height * scalePercent / 100d));
+        var resized = new DrawingBitmap(width, height);
+        using var resizeGraphics = DrawingGraphics.FromImage(resized);
+        resizeGraphics.InterpolationMode = DrawingInterpolationMode.HighQualityBicubic;
+        resizeGraphics.DrawImage(redacted, new DrawingRectangle(0, 0, width, height));
+        return resized;
+    }
+
+    private static void DrawPrivacyMask(DrawingGraphics graphics, RectInt mask, int width, int height)
+    {
+        var rect = ClampRect(mask, width, height);
+        using var fill = new DrawingSolidBrush(DrawingColor.Black);
+        graphics.FillRectangle(fill, rect);
+
+        var fontSize = Math.Clamp(Math.Min(rect.Width / 8f, rect.Height / 3f), 8f, 18f);
+        using var font = new DrawingFont("Segoe UI", fontSize, DrawingFontStyle.Bold);
+        using var format = new DrawingStringFormat
+        {
+            Alignment = System.Drawing.StringAlignment.Center,
+            LineAlignment = System.Drawing.StringAlignment.Center,
+            Trimming = DrawingStringTrimming.EllipsisCharacter,
+            FormatFlags = System.Drawing.StringFormatFlags.NoWrap
+        };
+
+        graphics.DrawString("Privacy mask", font, DrawingBrushes.White, rect, format);
+    }
+
+    private static IReadOnlyList<Annotation> ScaleAnnotations(IReadOnlyList<Annotation> annotations, int scalePercent)
+    {
+        var scale = ClampScalePercent(scalePercent) / 100d;
+        return annotations
+            .Select(annotation => annotation with { BoxRect = ScaleRect(annotation.BoxRect, scale) })
+            .ToList();
+    }
+
+    private static IReadOnlyList<PrivacyMask>? ScalePrivacyMasks(IReadOnlyList<PrivacyMask>? masks, int scalePercent)
+    {
+        if (masks is null)
+        {
+            return null;
+        }
+
+        var scale = ClampScalePercent(scalePercent) / 100d;
+        return masks
+            .Select(mask => mask with { BoxRect = ScaleRect(mask.BoxRect, scale) })
+            .ToList();
+    }
+
+    private static RectInt ScaleRect(RectInt rect, double scale)
+    {
+        return new RectInt(
+            Math.Max(0, (int)Math.Round(rect.X * scale)),
+            Math.Max(0, (int)Math.Round(rect.Y * scale)),
+            Math.Max(1, (int)Math.Round(rect.Width * scale)),
+            Math.Max(1, (int)Math.Round(rect.Height * scale)));
+    }
+
+    private static int ClampScalePercent(int scalePercent)
+    {
+        return Math.Clamp(scalePercent, 20, 100);
+    }
+
+    private static void WriteAnnotatedOverview(DrawingBitmap source, IReadOnlyList<Annotation> annotations, string path)
     {
         using var target = new DrawingBitmap(source.Width, source.Height);
         using var graphics = DrawingGraphics.FromImage(target);
         graphics.DrawImage(source, 0, 0, source.Width, source.Height);
 
-        foreach (var annotation in capture.Annotations.OrderBy(item => item.Number))
+        foreach (var annotation in annotations.OrderBy(item => item.Number))
         {
             DrawAnnotation(graphics, annotation, source.Width, source.Height);
         }

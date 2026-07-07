@@ -53,6 +53,8 @@ public sealed class CaptureViewModel
 
     public ObservableCollection<AnnotationViewModel> Annotations { get; } = [];
 
+    public ObservableCollection<PrivacyMaskViewModel> PrivacyMasks { get; } = [];
+
     public int GetNextAnnotationNumber()
     {
         return Annotations.Count == 0 ? 1 : Annotations.Max(annotation => annotation.Number) + 1;

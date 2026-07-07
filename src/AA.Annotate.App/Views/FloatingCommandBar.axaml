@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:primitives="using:Avalonia.Controls.Primitives"
              x:Class="AA.Annotate.App.Views.FloatingCommandBar">
   <Border Name="RootBorder"
           Height="42"
@@ -34,9 +35,88 @@
       <Button Name="CropButton" Classes="iconButton" Width="30" Height="30" ToolTip.Tip="Crop">
         <PathIcon Width="17" Height="17" Data="M5,3 L7,3 L7,17 L21,17 L21,19 L19,19 L19,23 L17,23 L17,19 L7,19 C5.9,19 5,18.1 5,17 L5,7 L1,7 L1,5 L5,5 Z M9,5 L17,5 C18.1,5 19,5.9 19,7 L19,15 L17,15 L17,7 L9,7 Z" />
       </Button>
+      <Button Name="PrivacyMaskButton" Classes="iconButton" Width="30" Height="30" ToolTip.Tip="Privacy mask">
+        <PathIcon Width="17" Height="17" Data="M3.3,2.9 L21.1,20.7 L19.7,22.1 L16.2,18.6 C14.9,19.1 13.5,19.4 12,19.4 C7.1,19.4 3.1,16.5 1.4,12 C2.2,10 3.5,8.3 5.1,7 L1.9,3.8 Z M6.5,8.4 C5.3,9.3 4.3,10.5 3.6,12 C5.1,15.1 8,17.4 12,17.4 C12.9,17.4 13.8,17.3 14.6,17 L12.8,15.2 C12.5,15.3 12.3,15.3 12,15.3 C10.2,15.3 8.7,13.8 8.7,12 C8.7,11.7 8.7,11.5 8.8,11.2 Z M12,4.6 C16.9,4.6 20.9,7.5 22.6,12 C22.1,13.4 21.2,14.7 20.2,15.8 L18.8,14.4 C19.5,13.7 20,12.9 20.4,12 C18.9,8.9 16,6.6 12,6.6 C11.3,6.6 10.6,6.7 9.9,6.9 L8.3,5.3 C9.4,4.8 10.7,4.6 12,4.6 Z M12,8.7 C13.8,8.7 15.3,10.2 15.3,12 C15.3,12.2 15.3,12.4 15.2,12.6 L11.4,8.8 C11.6,8.7 11.8,8.7 12,8.7 Z" />
+      </Button>
       <Button Name="AnnotationButton" Classes="iconButton" Width="30" Height="30" ToolTip.Tip="Annotation box">
         <PathIcon Width="17" Height="17" Data="M4,5 L20,5 C21.1,5 22,5.9 22,7 L22,17 C22,18.1 21.1,19 20,19 L10,19 L6,23 L6,19 L4,19 C2.9,19 2,18.1 2,17 L2,7 C2,5.9 2.9,5 4,5 Z M5,8 L5,16 L19,16 L19,8 Z" />
       </Button>
+      <Border Width="78"
+              Height="30"
+              Name="ScaleBox"
+              CornerRadius="7"
+              Background="{StaticResource OverlayActiveBrush}"
+              BorderBrush="#30FFFFFF"
+              BorderThickness="0"
+              Padding="0,0,5,0"
+              ToolTip.Tip="Export image size"
+              ClipToBounds="False">
+        <Grid ColumnDefinitions="*,12">
+          <TextBox Name="ScaleTextBox"
+                   Classes="scaleTextBox"
+                   Background="Transparent"
+                   BorderBrush="Transparent"
+                   BorderThickness="0"
+                   FocusAdorner="{x:Null}"
+                   Padding="0"
+                   Text="100%"
+                   FontSize="12"
+                   Foreground="White"
+                   SelectionBrush="{DynamicResource TextSelectionBrush}"
+                   SelectionForegroundBrush="White"
+                   CaretBrush="White"
+                   TextAlignment="Center"
+                   HorizontalContentAlignment="Center"
+                   VerticalContentAlignment="Center"
+                   VerticalAlignment="Stretch">
+            <TextBox.Resources>
+              <SolidColorBrush x:Key="TextControlBackground" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlBorderBrush" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#002B2B2B" />
+              <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8AFFFFFF" />
+            </TextBox.Resources>
+          </TextBox>
+          <Border Name="ScalePresetButton"
+                  Grid.Column="1"
+                  Width="12"
+                  Height="30"
+                  Background="Transparent"
+                  BorderBrush="Transparent"
+                  BorderThickness="0"
+                  ToolTip.Tip="Scale presets">
+            <PathIcon Width="9"
+                      Height="9"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center"
+                      Data="M6,8 L12,14 L18,8 Z" />
+          </Border>
+          <primitives:Popup Name="ScalePresetPopup"
+                            PlacementTarget="{Binding #ScaleBox}"
+                            Placement="TopEdgeAlignedLeft"
+                            VerticalOffset="-2"
+                            IsLightDismissEnabled="True">
+            <Border Width="96"
+                    CornerRadius="7"
+                    Background="{StaticResource PanelSurfaceBrush}"
+                    BorderBrush="{StaticResource OverlayBorderBrush}"
+                    BorderThickness="1"
+                    Padding="6">
+              <StackPanel Spacing="5"
+                          HorizontalAlignment="Center">
+                <Button Name="ScalePreset100Button" Classes="scalePresetButton" Content="100%" />
+                <Button Name="ScalePreset75Button" Classes="scalePresetButton" Content="75%" />
+                <Button Name="ScalePreset66Button" Classes="scalePresetButton" Content="66%" />
+                <Button Name="ScalePreset50Button" Classes="scalePresetButton" Content="50%" />
+                <Button Name="ScalePreset33Button" Classes="scalePresetButton" Content="33%" />
+                <Button Name="ScalePreset25Button" Classes="scalePresetButton" Content="25%" />
+              </StackPanel>
+            </Border>
+          </primitives:Popup>
+        </Grid>
+      </Border>
       <Button Name="FinishButton" Classes="confirmButton" Width="30" Height="30" ToolTip.Tip="Send to agent">
         <PathIcon Width="17" Height="17" Data="M12,2 C6.5,2 2,6.5 2,12 C2,17.5 6.5,22 12,22 C17.5,22 22,17.5 22,12 C22,6.5 17.5,2 12,2 Z M10.2,16.3 L6.7,12.8 L8.1,11.4 L10.2,13.5 L15.9,7.8 L17.3,9.2 Z" />
       </Button>

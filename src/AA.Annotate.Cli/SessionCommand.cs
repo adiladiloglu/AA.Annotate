@@ -7,6 +7,7 @@ namespace AA.Annotate.Cli;
 
 public sealed class SessionCommand
 {
+    private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan WaiterSafetyBuffer = TimeSpan.FromSeconds(15);
     private const string HelpText = """
@@ -17,9 +18,9 @@ public sealed class SessionCommand
 
         Options:
           --wait                         Wait until the user completes, cancels, or the session errors.
-          --session-root <folder>        Store created session folders under this root folder.
-          --output <folder>              Alias for --session-root.
-          --timeout-seconds <seconds>    Inactivity timeout passed to the desktop app. Default: 600.
+          --session-root <folder>        Store private working session folders under this root folder.
+          --output <folder>              Store final exported review files under this root folder.
+          --timeout-seconds <seconds>    Inactivity timeout passed to the desktop app. Default: 60.
           -h, --help, /?                 Show this help.
         """;
     private readonly TextWriter _output;
@@ -50,18 +51,17 @@ public sealed class SessionCommand
         }
 
         var wait = args.Contains("--wait", StringComparer.OrdinalIgnoreCase);
-        var outputFolder = ReadOption(args, "--session-root") ?? ReadOption(args, "--output");
+        var sessionRoot = ReadOption(args, "--session-root");
+        var outputRoot = ReadOption(args, "--output");
         var timeout = ReadTimeout(args);
-        var paths = await _store.CreateSessionAsync(outputFolder, cancellationToken);
-        await _output.WriteLineAsync($"SESSION_FOLDER={paths.SessionFolder}");
-        await _output.WriteLineAsync($"SESSION_JSON={paths.StatusJsonPath}");
+        var paths = await _store.CreateSessionAsync(sessionRoot, outputRoot, cancellationToken);
 
         Process launchedProcess;
         try
         {
             var appExecutable = _launcher.ResolveExecutablePath();
             await _output.WriteLineAsync($"APP_EXE={appExecutable}");
-            launchedProcess = _launcher.Launch(paths.SessionFolder, timeout);
+            launchedProcess = _launcher.Launch(paths.SessionFolder, paths.ExportFolder, timeout);
             await _output.WriteLineAsync($"APP_PROCESS_ID={launchedProcess.Id}");
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or FileNotFoundException)
@@ -81,8 +81,8 @@ public sealed class SessionCommand
         await _output.WriteLineAsync($"SESSION_STATUS={status.Status.ToString().ToLowerInvariant()}");
         if (status.Status == SessionStatus.Completed)
         {
-            await _output.WriteLineAsync($"REVIEW_MD={Path.Combine(paths.SessionFolder, status.ReviewPath ?? "review.md")}");
-            await _output.WriteLineAsync($"ANNOTATIONS_JSON={Path.Combine(paths.SessionFolder, status.AnnotationsPath ?? "annotations.json")}");
+            await _output.WriteLineAsync($"REVIEW_MD={ResolveStatusPath(paths.ExportFolder, status.ReviewPath, "review.md")}");
+            await _output.WriteLineAsync($"ANNOTATIONS_JSON={ResolveStatusPath(paths.ExportFolder, status.AnnotationsPath, "annotations.json")}");
         }
         else if (status.Status == SessionStatus.Error && !string.IsNullOrWhiteSpace(status.ErrorMessage))
         {
@@ -105,6 +105,18 @@ public sealed class SessionCommand
         return null;
     }
 
+    private static string ResolveStatusPath(string exportFolder, string? statusPath, string fallbackFileName)
+    {
+        if (string.IsNullOrWhiteSpace(statusPath))
+        {
+            return Path.Combine(exportFolder, fallbackFileName);
+        }
+
+        return Path.IsPathRooted(statusPath)
+            ? statusPath
+            : Path.Combine(exportFolder, statusPath);
+    }
+
     private static bool IsHelpRequested(IReadOnlyList<string> args)
     {
         return args.Any(arg =>
@@ -118,7 +130,7 @@ public sealed class SessionCommand
         var value = ReadOption(args, "--timeout-seconds");
         if (string.IsNullOrWhiteSpace(value))
         {
-            return TimeSpan.FromMinutes(10);
+            return DefaultIdleTimeout;
         }
 
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0

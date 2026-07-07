@@ -9,7 +9,7 @@ Use AA Annotate when the task depends on the user's visual selection or comments
 
 ## Start a Session
 
-Tell the user the annotation window is opening and that you will wait while they capture, crop, annotate, and send the session back.
+Launch the annotation window and wait while the user captures, crops, masks, annotates, and sends the session back.
 
 Use the first available launch method:
 
@@ -37,9 +37,11 @@ Use the first available launch method:
    & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait
    ```
 
-Add `--session-root "<folder>"` only when the user asks to store session files somewhere specific. Otherwise let AA Annotate use the OS temp directory.
+Add `--output "<folder>"` only when the user asks to store final exported handoff files somewhere specific. Do not use or inspect the private working session folder; it is intentionally separate from the final export folder and is not part of the agent handoff.
 
-Use a shell/tool timeout longer than the expected human annotation time. If `--timeout-seconds` is omitted, the CLI uses 600 seconds. `--timeout-seconds` controls app inactivity and the CLI waiter's inactivity bound, and resets while the user interacts with the app. The outer shell/tool timeout is separate and must be longer than the AA Annotate inactivity window plus expected user time. Use a shorter value such as 60 seconds only for deliberate short tests.
+Add `--session-root "<folder>"` only when debugging AA Annotate itself and you need to control where private working files are stored. For normal agent use, let AA Annotate keep private working files in the OS temp directory.
+
+Use a shell/tool timeout longer than the expected human annotation time. If `--timeout-seconds` is omitted, the CLI uses 60 seconds. `--timeout-seconds` controls app inactivity and the CLI waiter's inactivity bound. User interaction with the app resets the inactivity timer. The outer shell/tool timeout is separate and must be longer than the AA Annotate inactivity window plus expected user time.
 
 If the outer shell/tool times out before AA Annotate returns, report that the agent-side wait timed out or rerun the same launch method with a longer outer timeout. Do not infer completion from private session files.
 
@@ -74,10 +76,13 @@ For each `## Capture N` in `REVIEW_MD`:
 - Treat it as a separate screen state.
 - Open the `Image:` path when visual confirmation matters.
 - Resolve relative image paths from the folder containing `REVIEW_MD`.
-- Treat `Image:` as the primary source of truth. If the user cropped, this image is the cropped image; the full screenshot is not exported for normal use.
-- Prefer `Annotated image:` when you need a fast visual map of all numbered annotation boxes for the capture. It is the primary image with exported annotation outlines and numbers drawn on top.
+- Treat `Image:` as the primary source of truth. It is the exported image after crop normalization, privacy masking, and export scaling.
+- If the user cropped, `Image:` is the cropped image; the full screenshot is not exported for normal use.
+- If the user selected an export scale below 100%, `Image:` is downscaled and all exported coordinates use that scaled image size.
+- Privacy masks appear as black rectangles labeled `Privacy mask`. Treat them as intentional redactions, not image defects.
+- Prefer `Annotated image:` when you need a fast visual map of all numbered annotation boxes for the capture. It is the exported primary image with privacy masks already applied and annotation outlines/numbers drawn on top.
 - Treat every annotation line as relative to the `Image:` path shown in that capture.
-- If an annotation includes an indented `Image:` line, use that cropped annotation snippet for focused inspection of that one region.
+- If an annotation includes an indented `Image:` line, use that cropped annotation snippet for focused inspection of that one region. Privacy masks are applied before these snippets are generated, so snippets can contain masked areas.
 - Apply the indented comment immediately below an annotation line to that numbered rectangle.
 - Do not merge annotation numbers across captures.
 
@@ -95,20 +100,24 @@ Coordinate rules:
 
 - For an uncropped capture, coordinates are relative to the full-screen `Image:`.
 - For a cropped capture, coordinates are relative to the cropped `Image:`.
+- For a scaled export, coordinates are relative to the scaled `Image:`.
 - `Crop:` is metadata in original screenshot coordinates. Use it only when you must map a cropped annotation back to original screen coordinates.
 - If `Crop:` describes a non-full crop but `Image:` points at an uncropped full screenshot, treat the handoff as inconsistent and report an artifact error instead of guessing coordinate basis.
 - Export removes annotations fully outside the crop.
 - Export clips annotations partly crossing the crop edge.
 - Export renumbers remaining annotations sequentially inside each capture after filtering. These numbers may differ from temporary numbers the user saw while editing.
+- Privacy masks are clipped to the exported crop and scaled with the exported image.
 
 JSON rules:
 
 - `captures[].screenshotPath` is the primary exported image path to inspect.
 - `captures[].croppedPath` is present when the primary image came from a crop.
-- `captures[].annotatedImagePath` is the exported overview image with annotation boxes and numbers drawn on the primary image.
+- `captures[].annotatedImagePath` is the exported overview image with privacy masks, annotation boxes, and numbers drawn on the primary image.
 - `captures[].cropRect` records the crop in original screenshot coordinates.
 - `captures[].annotations[].boxRect` follows the same coordinate basis as `REVIEW_MD`: it is relative to the primary exported image.
 - `captures[].annotations[].imagePath` is the cropped image for that single annotation box.
+- `captures[].privacyMasks[].boxRect` follows the same coordinate basis as `REVIEW_MD`: it is relative to the primary exported image.
+- `captures[].exportScalePercent` records the scale applied to the exported image and coordinates.
 - `captures[].screenshotPixelSize` describes the original capture size, not necessarily the dimensions of a cropped primary image.
 - Resolve relative JSON image paths from the folder containing `ANNOTATIONS_JSON`.
 
@@ -120,7 +129,9 @@ Reference annotations by capture and number, for example `Capture 2, annotation 
 
 If a comment and its box appear inconsistent, trust the visual `Image:` plus the box first, then state the ambiguity instead of inventing intent.
 
-Do not read or rely on `session.json`, `status.json`, or other private local state unless debugging launch/completion failure.
+Do not read or rely on `session.json`, `status.json`, private screenshots, private thumbnails, original unscaled captures, or other private local state unless debugging launch/completion failure. During the annotation process, agents must not inspect the private working folder. Before completion, the only valid state source is CLI stdout. After completion, the normal handoff inputs are `REVIEW_MD` and `ANNOTATIONS_JSON`.
+
+Do not inspect an original unscaled image when a masked or scaled export is available. Use an original unscaled image only when the exported image is unreadable for the task, the original is available through an explicit debugging path, and privacy constraints allow inspecting it.
 
 Do not create screenshots or annotation files in the workspace unless the user explicitly asks.
 

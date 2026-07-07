@@ -69,12 +69,13 @@ public sealed class AppLauncherTests
         var startInfo = AppLauncher.CreateStartInfo(
             @"C:\Tools\AA.Annotate.App.exe",
             @"C:\Temp\AA.Annotate\sessions\1",
+            @"C:\Temp\AA.Annotate\exports\1",
             TimeSpan.FromSeconds(60));
 
         Assert.Equal(@"C:\Tools\AA.Annotate.App.exe", startInfo.FileName);
         Assert.True(startInfo.UseShellExecute);
         Assert.Equal(
-            ["--session", @"C:\Temp\AA.Annotate\sessions\1", "--idle-timeout-seconds", "60"],
+            ["--session", @"C:\Temp\AA.Annotate\sessions\1", "--export", @"C:\Temp\AA.Annotate\exports\1", "--idle-timeout-seconds", "60"],
             startInfo.ArgumentList);
     }
 }

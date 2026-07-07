@@ -10,6 +10,8 @@ namespace AA.Annotate.App;
 
 public partial class App : Application
 {
+    private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(1);
+
     public override void Initialize()
     {
         RegisterDesignResources();
@@ -24,7 +26,9 @@ public partial class App : Application
             var args = desktop.Args ?? [];
             desktop.MainWindow = new MainWindow(
                 ReadSessionFolder(args),
+                ReadExportFolder(args),
                 ReadSessionRoot(args),
+                ReadExportRoot(args),
                 ReadIdleTimeout(args));
         }
 
@@ -247,6 +251,16 @@ public partial class App : Application
         return ReadOption(args, "--session-root");
     }
 
+    internal static string? ReadExportFolder(IReadOnlyList<string> args)
+    {
+        return ReadOption(args, "--export");
+    }
+
+    internal static string? ReadExportRoot(IReadOnlyList<string> args)
+    {
+        return ReadOption(args, "--export-root");
+    }
+
     internal static TimeSpan? ReadIdleTimeout(IReadOnlyList<string> args)
     {
         var value = ReadOption(args, "--idle-timeout-seconds");
@@ -257,7 +271,7 @@ public partial class App : Application
                 : null;
         }
 
-        return null;
+        return DefaultIdleTimeout;
     }
 
     private static string? ReadOption(IReadOnlyList<string> args, string name)

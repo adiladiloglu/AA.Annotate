@@ -93,6 +93,10 @@ public partial class CaptureDropdown : UserControl
             });
             Grid.SetColumn(deleteButton, 1);
         }
+
+        CaptureList.InvalidateMeasure();
+        RootBorder.InvalidateMeasure();
+        InvalidateMeasure();
     }
 
     public void SetCanCreateCapture(bool canCreate)

@@ -15,18 +15,27 @@ public sealed class SessionStore
         _jsonOptions = SessionJsonOptions.Create();
     }
 
-    public async Task<SessionPaths> CreateSessionAsync(string? outputFolder, CancellationToken cancellationToken = default)
+    public async Task<SessionPaths> CreateSessionAsync(
+        string? sessionRoot,
+        string? exportRoot = null,
+        CancellationToken cancellationToken = default)
     {
         var now = _clock();
         var sessionId = CreateSessionId(now);
-        var root = string.IsNullOrWhiteSpace(outputFolder)
+        var root = string.IsNullOrWhiteSpace(sessionRoot)
             ? Path.Combine(Path.GetTempPath(), "AA.Annotate", "sessions")
-            : outputFolder;
+            : sessionRoot;
+        var resolvedExportRoot = string.IsNullOrWhiteSpace(exportRoot)
+            ? Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports")
+            : exportRoot;
         var sessionFolder = Path.Combine(root, sessionId);
+        var exportFolder = Path.Combine(resolvedExportRoot, sessionId);
         Directory.CreateDirectory(sessionFolder);
         Directory.CreateDirectory(Path.Combine(sessionFolder, "captures"));
+        Directory.CreateDirectory(exportFolder);
+        Directory.CreateDirectory(Path.Combine(exportFolder, "captures"));
 
-        var paths = SessionPaths.FromFolder(sessionFolder);
+        var paths = SessionPaths.FromFolder(sessionFolder, exportFolder);
         var status = new SessionStatusDocument(
             SessionStatus.Waiting,
             sessionId,
@@ -104,7 +113,11 @@ public sealed class SessionStore
 
     public async Task<SessionStatusDocument> ReadStatusAsync(SessionPaths paths, CancellationToken cancellationToken = default)
     {
-        await using var stream = File.OpenRead(paths.StatusJsonPath);
+        await using var stream = new FileStream(
+            paths.StatusJsonPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite);
         var status = await JsonSerializer.DeserializeAsync<SessionStatusDocument>(stream, _jsonOptions, cancellationToken);
         return status ?? throw new InvalidDataException($"Session status file is empty: {paths.StatusJsonPath}");
     }

@@ -4,14 +4,14 @@ namespace AA.Annotate.Cli;
 
 public class AppLauncher
 {
-    public virtual Process Launch(string sessionFolder, TimeSpan? idleTimeout = null)
+    public virtual Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
     {
         var executable = ResolveExecutablePath();
-        var startInfo = CreateStartInfo(executable, sessionFolder, idleTimeout);
+        var startInfo = CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout);
         return Process.Start(startInfo) ?? throw new InvalidOperationException($"Failed to start {executable}.");
     }
 
-    internal static ProcessStartInfo CreateStartInfo(string executable, string sessionFolder, TimeSpan? idleTimeout)
+    internal static ProcessStartInfo CreateStartInfo(string executable, string sessionFolder, string exportFolder, TimeSpan? idleTimeout)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -20,6 +20,8 @@ public class AppLauncher
         };
         startInfo.ArgumentList.Add("--session");
         startInfo.ArgumentList.Add(sessionFolder);
+        startInfo.ArgumentList.Add("--export");
+        startInfo.ArgumentList.Add(exportFolder);
         if (idleTimeout is { } timeout)
         {
             startInfo.ArgumentList.Add("--idle-timeout-seconds");

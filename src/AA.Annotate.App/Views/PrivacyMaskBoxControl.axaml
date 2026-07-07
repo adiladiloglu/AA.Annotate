@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AA.Annotate.App.Views.PrivacyMaskBoxControl">
+  <Canvas Background="Transparent">
+    <Border Name="BoxBorder"
+            Background="#E6000000"
+            BorderBrush="#EAF7FBFF"
+            BorderThickness="1.5"
+            CornerRadius="2">
+      <TextBlock Text="Privacy mask"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 Foreground="White"
+                 FontSize="12"
+                 FontWeight="SemiBold"
+                 TextAlignment="Center" />
+    </Border>
+    <Button Name="DeleteButton"
+            Classes="iconButton"
+            Width="18"
+            Height="18"
+            ToolTip.Tip="Remove privacy mask">
+      <PathIcon Width="10" Height="10" Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
+    </Button>
+    <Border Name="ResizeHandle"
+            Width="12"
+            Height="12"
+            CornerRadius="6"
+            Background="#EAF7FBFF" />
+  </Canvas>
+</UserControl>

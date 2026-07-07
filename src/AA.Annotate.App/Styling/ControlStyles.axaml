@@ -28,6 +28,62 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Padding" Value="8,0" />
   </Style>
+  <Style Selector="Button.scalePresetButton">
+    <Setter Property="Background" Value="{DynamicResource PanelItemBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Width" Value="78" />
+    <Setter Property="MinWidth" Value="78" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.scalePresetButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.scalePresetButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.scaleTextBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CaretBrush" Value="White" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource TextSelectionBrush}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextSelectionForegroundBrush}" />
+  </Style>
+  <Style Selector="TextBox.scaleTextBox:focus">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.scaleTextBox:pointerover">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.scaleTextBox /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.scaleTextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
   <Style Selector="Button.captureActionButton">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />

@@ -13,7 +13,9 @@ public sealed record AnnotationCapture(
     RectInt ScreenBounds,
     RectInt? CropRect,
     IReadOnlyList<Annotation> Annotations,
-    string? AnnotatedImagePath = null)
+    string? AnnotatedImagePath = null,
+    IReadOnlyList<PrivacyMask>? PrivacyMasks = null,
+    int ExportScalePercent = 100)
 {
     public int GetNextAnnotationNumber()
     {

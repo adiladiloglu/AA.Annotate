@@ -19,7 +19,7 @@ public sealed class SessionExporter
     {
         var exportSession = NormalizeForExport(session);
         exportSession = await WriteAnnotationArtifactsAsync(paths, exportSession, cancellationToken);
-        Directory.CreateDirectory(paths.SessionFolder);
+        Directory.CreateDirectory(paths.ExportFolder);
         await File.WriteAllTextAsync(paths.ReviewMarkdownPath, ReviewMarkdownWriter.Write(exportSession), cancellationToken);
 
         await using var stream = File.Create(paths.AnnotationsJsonPath);
@@ -73,7 +73,12 @@ public sealed class SessionExporter
         {
             ScreenshotPath = capture.CroppedPath ?? capture.ScreenshotPath,
             ThumbnailPath = capture.CroppedPath ?? capture.ThumbnailPath,
-            Annotations = annotations
+            Annotations = annotations,
+            PrivacyMasks = capture.PrivacyMasks?
+                .Select(mask => TryClipPrivacyMask(mask, crop))
+                .Where(mask => mask is not null)
+                .Select(mask => mask!)
+                .ToList()
         };
     }
 
@@ -89,5 +94,37 @@ public sealed class SessionExporter
         {
             BoxRect = exportBoxRect
         };
+    }
+
+    private static PrivacyMask? TryClipPrivacyMask(PrivacyMask mask, RectInt crop)
+    {
+        var intersection = Intersect(mask.BoxRect, crop);
+        if (intersection is null)
+        {
+            return null;
+        }
+
+        return mask with
+        {
+            BoxRect = new RectInt(
+                intersection.Value.X - crop.X,
+                intersection.Value.Y - crop.Y,
+                intersection.Value.Width,
+                intersection.Value.Height)
+        };
+    }
+
+    private static RectInt? Intersect(RectInt first, RectInt second)
+    {
+        var left = Math.Max(first.X, second.X);
+        var top = Math.Max(first.Y, second.Y);
+        var right = Math.Min(first.X + first.Width, second.X + second.Width);
+        var bottom = Math.Min(first.Y + first.Height, second.Y + second.Height);
+        if (right <= left || bottom <= top)
+        {
+            return null;
+        }
+
+        return new RectInt(left, top, right - left, bottom - top);
     }
 }
