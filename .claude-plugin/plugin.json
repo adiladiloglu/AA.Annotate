@@ -1,7 +1,7 @@
 {
   "name": "aa-annotate",
-  "description": "Windows annotation overlay for collecting screenshot comments during agent sessions",
-  "version": "0.1.0",
+  "description": "Windows annotation overlay for collecting masked screenshot comments during agent sessions",
+  "version": "0.2.0",
   "author": {
     "name": "Adil Adiloglu"
   },

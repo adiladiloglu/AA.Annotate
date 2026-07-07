@@ -18,7 +18,7 @@ $assetPath = Join-Path $repoRoot "artifacts\dist\$assetName"
 $notesPath = Join-Path $repoRoot "docs\release-notes\$tag.md"
 
 if (-not (Test-Path -LiteralPath $notesPath)) {
-    $notesPath = Join-Path $repoRoot 'docs\release-notes\v0.1.0.md'
+    throw "Release notes were not found: $notesPath"
 }
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
