@@ -19,32 +19,22 @@ Use the first available launch method:
    & "<plugin-root>\cli\aa-annotate.exe" session --wait
    ```
 
-2. User-local install:
-
-   ```powershell
-   & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
-   ```
-
-3. Repo-local packaged output, from the repository root:
-
-   ```powershell
-   & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait
-   ```
-
-4. Registered on `PATH`:
+2. Registered on `PATH`:
 
    ```powershell
    aa-annotate session --wait
    ```
 
-5. Development source fallback, from the repository root. Build first so the CLI can resolve the desktop app from the app project's output.
+3. User-local install:
 
    ```powershell
-   dotnet build AA.Annotate.slnx -v minimal
+   & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait
    ```
 
+4. Repo-local packaged output, from the repository root:
+
    ```powershell
-   dotnet run --project src\AA.Annotate.Cli\AA.Annotate.Cli.csproj -- session --wait
+   & ".\artifacts\publish\cli-win-x64\aa-annotate.exe" session --wait
    ```
 
 Add `--session-root "<folder>"` only when the user asks to store session files somewhere specific. Otherwise let AA Annotate use the OS temp directory.

@@ -8,8 +8,6 @@ It gives agents a small, reliable way to ask users for visual context: capture t
 
 ![AA Annotate usage demo](docs/Media/Usage_demo.gif)
 
-[Watch the MP4 version](docs/Media/Usage_4x.mp4)
-
 ## Screenshots
 
 ![AA Annotate capture workflow](docs/Media/im1.png)
