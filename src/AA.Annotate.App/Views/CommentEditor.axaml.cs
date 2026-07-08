@@ -30,7 +30,16 @@ public partial class CommentEditor : UserControl
     {
         CommentTextBox.Text = text;
         UpdateTextHeight();
-        CommentTextBox.Focus();
+    }
+
+    public void FocusTextBox()
+    {
+        if (!IsVisible)
+        {
+            return;
+        }
+
+        CommentTextBox.Focus(NavigationMethod.Unspecified, KeyModifiers.None);
         CommentTextBox.SelectAll();
     }
 

@@ -5,9 +5,12 @@ namespace AA.Annotate.Platform.Windows;
 public static class WindowsNativeWindowChrome
 {
     private const int GwlStyle = -16;
+    private const int GwlWndProc = -4;
     private const nint WsBorder = 0x00800000;
     private const nint WsDlgFrame = 0x00400000;
     private const nint WsThickFrame = 0x00040000;
+    private const int WmNcHitTest = 0x0084;
+    private const int HtTransparent = -1;
     private const int SwpNoSize = 0x0001;
     private const int SwpNoMove = 0x0002;
     private const int SwpNoZOrder = 0x0004;
@@ -17,6 +20,8 @@ public static class WindowsNativeWindowChrome
     private const int DwmwaBorderColor = 34;
     private const int DwmwcpDoNotRound = 1;
     private const uint DwmwaColorNone = 0xFFFFFFFE;
+    private static readonly object HookGate = new();
+    private static readonly Dictionary<nint, HitTestHook> HitTestHooks = [];
 
     public static void SuppressBorder(nint windowHandle)
     {
@@ -52,6 +57,38 @@ public static class WindowsNativeWindowChrome
             Marshal.SizeOf<uint>());
     }
 
+    public static IDisposable EnableTransparentHitTest(
+        nint windowHandle,
+        Func<int, int, bool> shouldHandleScreenPoint)
+    {
+        if (windowHandle == 0)
+        {
+            return EmptyDisposable.Instance;
+        }
+
+        lock (HookGate)
+        {
+            if (HitTestHooks.Remove(windowHandle, out var existing))
+            {
+                existing.Dispose();
+            }
+
+            var hook = new HitTestHook(windowHandle, shouldHandleScreenPoint);
+            HitTestHooks[windowHandle] = hook;
+            return hook;
+        }
+    }
+
+    private static int GetSignedLowWord(nint value)
+    {
+        return (short)((long)value & 0xFFFF);
+    }
+
+    private static int GetSignedHighWord(nint value)
+    {
+        return (short)(((long)value >> 16) & 0xFFFF);
+    }
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     private static extern nint GetWindowLongPtr(nint hWnd, int nIndex);
 
@@ -81,4 +118,73 @@ public static class WindowsNativeWindowChrome
         int attribute,
         ref uint pvAttribute,
         int cbAttribute);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern nint CallWindowProc(
+        nint lpPrevWndFunc,
+        nint hWnd,
+        uint msg,
+        nint wParam,
+        nint lParam);
+
+    private delegate nint WindowProc(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    private sealed class HitTestHook : IDisposable
+    {
+        private readonly nint _windowHandle;
+        private readonly Func<int, int, bool> _shouldHandleScreenPoint;
+        private readonly WindowProc _windowProc;
+        private readonly nint _previousWindowProc;
+        private bool _isDisposed;
+
+        public HitTestHook(nint windowHandle, Func<int, int, bool> shouldHandleScreenPoint)
+        {
+            _windowHandle = windowHandle;
+            _shouldHandleScreenPoint = shouldHandleScreenPoint;
+            _windowProc = WndProc;
+            _previousWindowProc = SetWindowLongPtr(
+                _windowHandle,
+                GwlWndProc,
+                Marshal.GetFunctionPointerForDelegate(_windowProc));
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposed = true;
+            SetWindowLongPtr(_windowHandle, GwlWndProc, _previousWindowProc);
+            lock (HookGate)
+            {
+                HitTestHooks.Remove(_windowHandle);
+            }
+        }
+
+        private nint WndProc(nint hWnd, uint msg, nint wParam, nint lParam)
+        {
+            if (msg == WmNcHitTest)
+            {
+                var screenX = GetSignedLowWord(lParam);
+                var screenY = GetSignedHighWord(lParam);
+                if (!_shouldHandleScreenPoint(screenX, screenY))
+                {
+                    return HtTransparent;
+                }
+            }
+
+            return CallWindowProc(_previousWindowProc, hWnd, msg, wParam, lParam);
+        }
+    }
+
+    private sealed class EmptyDisposable : IDisposable
+    {
+        public static readonly EmptyDisposable Instance = new();
+
+        public void Dispose()
+        {
+        }
+    }
 }

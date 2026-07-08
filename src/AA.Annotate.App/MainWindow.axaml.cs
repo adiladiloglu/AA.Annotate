@@ -59,6 +59,7 @@ public partial class MainWindow : Window
     private DateTimeOffset _idleWarningExpiresAtUtc;
     private DispatcherTimer? _idleTimer;
     private DispatcherTimer? _idleWarningTimer;
+    private IDisposable? _nativeHitTestHook;
 
     public MainWindow()
         : this(null, null, null, null, null)
@@ -139,6 +140,7 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs e)
     {
         SuppressNativeWindowBorder();
+        InstallNativeHitTestPassThrough();
         PlaceOnPrimaryDisplay();
         await EnsureSessionAsync();
         AboutVersionText.Text = CreateAboutVersionText();
@@ -153,6 +155,70 @@ public partial class MainWindow : Window
         {
             WindowsNativeWindowChrome.SuppressBorder(handle);
         }
+    }
+
+    private void InstallNativeHitTestPassThrough()
+    {
+        if (TryGetPlatformHandle()?.Handle is not { } handle)
+        {
+            return;
+        }
+
+        _nativeHitTestHook?.Dispose();
+        _nativeHitTestHook = WindowsNativeWindowChrome.EnableTransparentHitTest(handle, ShouldHandleNativeHitTest);
+    }
+
+    private bool ShouldHandleNativeHitTest(int screenX, int screenY)
+    {
+        var point = ToWindowPoint(screenX, screenY);
+        return OverlayHitTestPolicy.ShouldHandlePoint(
+            IsFullSurfaceInputActive(),
+            GetVisibleChromeRects(),
+            point);
+    }
+
+    private PointInt ToWindowPoint(int screenX, int screenY)
+    {
+        var scaling = RenderScaling > 0 ? RenderScaling : 1;
+        return new PointInt(
+            (int)Math.Round((screenX - Position.X) / scaling),
+            (int)Math.Round((screenY - Position.Y) / scaling));
+    }
+
+    private IEnumerable<RectInt> GetVisibleChromeRects()
+    {
+        if (!ChromeCanvas.IsVisible)
+        {
+            yield break;
+        }
+
+        foreach (var control in new Control[] { CommandBar, DisplayDropdown, CaptureDropdown, AboutPanel, CommentEditor })
+        {
+            if (TryGetVisibleControlWindowRect(control) is { } rect)
+            {
+                yield return rect;
+            }
+        }
+    }
+
+    private RectInt? TryGetVisibleControlWindowRect(Control control)
+    {
+        if (!control.IsVisible || control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
+        {
+            return null;
+        }
+
+        var topLeft = control.TranslatePoint(new Point(0, 0), this);
+        if (topLeft is null)
+        {
+            return null;
+        }
+
+        return new RectInt(
+            (int)Math.Floor(topLeft.Value.X),
+            (int)Math.Floor(topLeft.Value.Y),
+            Math.Max(1, (int)Math.Ceiling(control.Bounds.Width)),
+            Math.Max(1, (int)Math.Ceiling(control.Bounds.Height)));
     }
 
     private void ConfigureChromePanelHover(Control panel)
@@ -705,8 +771,17 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible,
-            HasActiveCrop());
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible);
+    }
+
+    private bool IsFullSurfaceInputActive()
+    {
+        return InteractionSurfacePolicy.ShouldHandleFullSurfaceInput(
+            _isCapturing,
+            _isDrawing,
+            _session.Mode,
+            CropOverlay.IsVisible,
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible);
     }
 
     private bool ShouldRenderCaptureSurface()
@@ -1008,12 +1083,6 @@ public partial class MainWindow : Window
             capture.ScreenshotPixelSize);
     }
 
-    private bool HasActiveCrop()
-    {
-        return _session.CurrentCapture is { } capture &&
-            CaptureCropProjector.IsCropped(capture);
-    }
-
     private void OnAnnotationPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_session.CurrentCapture is null ||
@@ -1110,9 +1179,26 @@ public partial class MainWindow : Window
 
         if (_session.Mode == AnnotationInteractionMode.DrawingPrivacyMask)
         {
+            foreach (var existing in _session.CurrentCapture.PrivacyMasks)
+            {
+                existing.IsSelected = false;
+            }
+
+            foreach (var existing in _session.CurrentCapture.Annotations)
+            {
+                existing.IsSelected = false;
+            }
+
+            _session.SelectedAnnotation = null;
+            _commentTarget = null;
+            CommentEditor.IsVisible = false;
+
             _session.CurrentCapture.PrivacyMasks.Add(new PrivacyMaskViewModel(
                 Guid.NewGuid().ToString("N"),
-                rect));
+                rect)
+            {
+                IsSelected = true,
+            });
         }
         else
         {
@@ -1143,6 +1229,7 @@ public partial class MainWindow : Window
         {
             var mask = new PrivacyMaskBoxControl();
             mask.SetMask(privacyMask);
+            mask.Selected += (_, request) => SelectPrivacyMask(request);
             mask.RectChanged += (_, _) => { };
             mask.DeleteRequested += (_, _) =>
             {
@@ -1152,6 +1239,11 @@ public partial class MainWindow : Window
                 }
 
                 _session.CurrentCapture.PrivacyMasks.Remove(privacyMask);
+                if (privacyMask.IsSelected)
+                {
+                    privacyMask.IsSelected = false;
+                }
+
                 RefreshAnnotations();
             };
             Canvas.SetLeft(mask, privacyMask.BoxRect.X);
@@ -1206,6 +1298,11 @@ public partial class MainWindow : Window
             existing.IsSelected = existing == annotation;
         }
 
+        foreach (var privacyMask in _session.CurrentCapture.PrivacyMasks)
+        {
+            privacyMask.IsSelected = false;
+        }
+
         _session.SelectedAnnotation = annotation;
         _session.Mode = AnnotationInteractionMode.AnnotationSelected;
         _isPrivacyMaskToggleActive = false;
@@ -1216,6 +1313,8 @@ public partial class MainWindow : Window
         PositionCommentEditor(annotation);
         RefreshCropMaskVisibility();
         UpdateChrome();
+        Activate();
+        CommentEditor.FocusTextBox();
     }
 
     private void SelectAnnotation(AnnotationSelectionRequest request)
@@ -1225,12 +1324,104 @@ public partial class MainWindow : Window
             return;
         }
 
-        var selected = AnnotationSelectionPolicy.SelectAtPoint(
-            _session.CurrentCapture.Annotations,
-            _session.SelectedAnnotation,
-            request.Annotation,
-            request.Point);
-        SelectAnnotation(selected);
+        SelectOverlay(SelectOverlayAtPoint(request.Point, request.Annotation, request.AllowCycle));
+    }
+
+    private void SelectPrivacyMask(PrivacyMaskSelectionRequest request)
+    {
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        SelectOverlay(SelectOverlayAtPoint(request.Point, request.Mask, request.AllowCycle));
+    }
+
+    private object SelectOverlayAtPoint(PointInt point, object requested, bool allowCycle)
+    {
+        if (!allowCycle || _session.CurrentCapture is null)
+        {
+            return requested;
+        }
+
+        var hits = new List<object>();
+        hits.AddRange(_session.CurrentCapture.Annotations
+            .OrderByDescending(annotation => annotation.Number)
+            .Where(annotation => Contains(annotation.BoxRect, point)));
+        for (var index = _session.CurrentCapture.PrivacyMasks.Count - 1; index >= 0; index--)
+        {
+            var mask = _session.CurrentCapture.PrivacyMasks[index];
+            if (Contains(mask.BoxRect, point))
+            {
+                hits.Add(mask);
+            }
+        }
+
+        if (hits.Count == 0)
+        {
+            return requested;
+        }
+
+        var current = GetSelectedOverlay();
+        var selectedIndex = current is null ? -1 : hits.IndexOf(current);
+        return selectedIndex >= 0
+            ? hits[(selectedIndex + 1) % hits.Count]
+            : hits[0];
+    }
+
+    private object? GetSelectedOverlay()
+    {
+        if (_session.SelectedAnnotation is not null)
+        {
+            return _session.SelectedAnnotation;
+        }
+
+        return _session.CurrentCapture?.PrivacyMasks.FirstOrDefault(mask => mask.IsSelected);
+    }
+
+    private void SelectOverlay(object selected)
+    {
+        switch (selected)
+        {
+            case AnnotationViewModel annotation:
+                SelectAnnotation(annotation);
+                break;
+            case PrivacyMaskViewModel mask:
+                SelectPrivacyMask(mask);
+                break;
+        }
+    }
+
+    private void SelectPrivacyMask(PrivacyMaskViewModel mask)
+    {
+        if (_session.CurrentCapture is null)
+        {
+            return;
+        }
+
+        foreach (var existing in _session.CurrentCapture.PrivacyMasks)
+        {
+            existing.IsSelected = existing == mask;
+        }
+
+        foreach (var annotation in _session.CurrentCapture.Annotations)
+        {
+            annotation.IsSelected = false;
+        }
+
+        _session.SelectedAnnotation = null;
+        _commentTarget = null;
+        CommentEditor.IsVisible = false;
+        RefreshCropMaskVisibility();
+        UpdateChrome();
+    }
+
+    private static bool Contains(RectInt rect, PointInt point)
+    {
+        return point.X >= rect.X &&
+            point.X < rect.Right &&
+            point.Y >= rect.Y &&
+            point.Y < rect.Bottom;
     }
 
     private void PositionCommentEditor(AnnotationViewModel annotation)
@@ -1359,6 +1550,7 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
+        DisposeNativeHitTestHook();
         if (_hasTerminalStatus || _paths is null)
         {
             return;
@@ -1367,6 +1559,12 @@ public partial class MainWindow : Window
         StopIdleTimers();
         _hasTerminalStatus = true;
         await _store.MarkCancelledAsync(_paths);
+    }
+
+    private void DisposeNativeHitTestHook()
+    {
+        _nativeHitTestHook?.Dispose();
+        _nativeHitTestHook = null;
     }
 
     private void StopIdleTimers()

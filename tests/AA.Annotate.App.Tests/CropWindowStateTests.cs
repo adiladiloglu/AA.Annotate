@@ -6,20 +6,29 @@ namespace AA.Annotate.App.Tests;
 public sealed class CropWindowStateTests
 {
     [Fact]
-    public void StoredCropKeepsFullscreenPreviewAfterCropOverlayCloses()
+    public void StoredCropDoesNotKeepFullscreenPreviewAfterCropOverlayCloses()
     {
-        var viewport = new SizeInt(1536, 864);
-        var storedCrop = new RectInt(320, 120, 760, 430);
-
         var useFullscreen = InteractionSurfacePolicy.ShouldUseFullscreen(
             isCapturing: false,
             isDrawing: false,
             AnnotationInteractionMode.Idle,
             cropOverlayVisible: false,
-            commentEditorVisible: false,
-            cropIsActive: CropViewport.IsCropped(storedCrop, viewport));
+            commentEditorVisible: false);
 
-        Assert.True(useFullscreen);
+        Assert.False(useFullscreen);
+    }
+
+    [Fact]
+    public void StoredCropDoesNotConsumeFullSurfaceInputWhenNoEditToolIsActive()
+    {
+        var handleFullSurfaceInput = InteractionSurfacePolicy.ShouldHandleFullSurfaceInput(
+            isCapturing: false,
+            isDrawing: false,
+            AnnotationInteractionMode.Idle,
+            cropOverlayVisible: false,
+            commentEditorVisible: false);
+
+        Assert.False(handleFullSurfaceInput);
     }
 
     [Fact]

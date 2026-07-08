@@ -7,8 +7,7 @@ public static class InteractionSurfacePolicy
         bool isDrawing,
         AnnotationInteractionMode mode,
         bool cropOverlayVisible,
-        bool commentEditorVisible,
-        bool cropIsActive)
+        bool commentEditorVisible)
     {
         return isCapturing ||
             isDrawing ||
@@ -17,8 +16,24 @@ public static class InteractionSurfacePolicy
                 AnnotationInteractionMode.EditingCrop or
                 AnnotationInteractionMode.AnnotationSelected ||
             cropOverlayVisible ||
-            commentEditorVisible ||
-            cropIsActive;
+            commentEditorVisible;
+    }
+
+    public static bool ShouldHandleFullSurfaceInput(
+        bool isCapturing,
+        bool isDrawing,
+        AnnotationInteractionMode mode,
+        bool cropOverlayVisible,
+        bool commentEditorVisible)
+    {
+        return isCapturing ||
+            isDrawing ||
+            mode is AnnotationInteractionMode.DrawingAnnotation or
+                AnnotationInteractionMode.DrawingPrivacyMask or
+                AnnotationInteractionMode.EditingCrop or
+                AnnotationInteractionMode.AnnotationSelected ||
+            cropOverlayVisible ||
+            commentEditorVisible;
     }
 
     public static bool ShouldRenderCaptureSurface(
