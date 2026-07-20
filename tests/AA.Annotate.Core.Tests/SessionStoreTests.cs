@@ -7,6 +7,16 @@ namespace AA.Annotate.Core.Tests;
 
 public sealed class SessionStoreTests
 {
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+    private static StringComparer PathComparer =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
     [Fact]
     public void FromFolderSeparatesPrivateSessionAndExportFoldersByDefault()
     {
@@ -15,10 +25,42 @@ public sealed class SessionStoreTests
         var paths = SessionPaths.FromFolder(sessionFolder);
 
         Assert.Equal(sessionFolder, paths.SessionFolder);
-        Assert.NotEqual(paths.SessionFolder, paths.ExportFolder, StringComparer.OrdinalIgnoreCase);
-        Assert.StartsWith(paths.SessionFolder, paths.StatusJsonPath, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith(paths.ExportFolder, paths.ReviewMarkdownPath, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith(paths.ExportFolder, paths.AnnotationsJsonPath, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual(paths.SessionFolder, paths.ExportFolder, PathComparer);
+        Assert.StartsWith(paths.SessionFolder, paths.StatusJsonPath, PathComparison);
+        Assert.StartsWith(paths.ExportFolder, paths.ReviewMarkdownPath, PathComparison);
+        Assert.StartsWith(paths.ExportFolder, paths.AnnotationsJsonPath, PathComparison);
+    }
+
+    [Fact]
+    public void FromFolderUsesPlatformPathCaseRulesWhenAvoidingExportCollision()
+    {
+        var sessionFolder = Path.Combine(
+            Path.GetTempPath(),
+            "AA.Annotate",
+            "EXPORTS",
+            $"path-case-{Guid.NewGuid():N}");
+
+        var paths = SessionPaths.FromFolder(sessionFolder);
+
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+        {
+            Assert.EndsWith("-export", paths.ExportFolder, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.False(paths.ExportFolder.EndsWith("-export", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void FromFolderRejectsAnExplicitExportFolderThatMatchesThePrivateSessionFolder()
+    {
+        var sessionFolder = Path.Combine(Path.GetTempPath(), "AA.Annotate.Tests", Guid.NewGuid().ToString("N"));
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => SessionPaths.FromFolder(sessionFolder, sessionFolder));
+
+        Assert.Equal("exportFolder", exception.ParamName);
     }
 
     [Fact]
@@ -30,13 +72,13 @@ public sealed class SessionStoreTests
 
         var paths = await store.CreateSessionAsync(sessionRoot, exportRoot);
 
-        Assert.StartsWith(sessionRoot, paths.SessionFolder, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith(exportRoot, paths.ExportFolder, StringComparison.OrdinalIgnoreCase);
-        Assert.NotEqual(paths.SessionFolder, paths.ExportFolder, StringComparer.OrdinalIgnoreCase);
+        Assert.StartsWith(sessionRoot, paths.SessionFolder, PathComparison);
+        Assert.StartsWith(exportRoot, paths.ExportFolder, PathComparison);
+        Assert.NotEqual(paths.SessionFolder, paths.ExportFolder, PathComparer);
         Assert.True(File.Exists(paths.StatusJsonPath));
         Assert.True(Directory.Exists(paths.WorkingCapturesFolder));
         Assert.True(Directory.Exists(paths.ExportCapturesFolder));
-        Assert.StartsWith(paths.ExportFolder, paths.ReviewMarkdownPath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(paths.ExportFolder, paths.ReviewMarkdownPath, PathComparison);
 
         var status = JsonSerializer.Deserialize<SessionStatusDocument>(
             await File.ReadAllTextAsync(paths.StatusJsonPath),

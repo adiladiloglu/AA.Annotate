@@ -18,6 +18,14 @@ public sealed record SessionPaths(
         var resolvedExportFolder = string.IsNullOrWhiteSpace(exportFolder)
             ? CreateDefaultExportFolder(sessionFolder)
             : exportFolder;
+
+        if (PathsReferToSameLocation(sessionFolder, resolvedExportFolder))
+        {
+            throw new ArgumentException(
+                "The export folder must be different from the private session folder.",
+                nameof(exportFolder));
+        }
+
         return new SessionPaths(
             sessionFolder,
             resolvedExportFolder,
@@ -30,11 +38,39 @@ public sealed record SessionPaths(
     {
         var sessionId = Path.GetFileName(sessionFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var exportFolder = Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", sessionId);
-        return string.Equals(
-            Path.GetFullPath(sessionFolder),
-            Path.GetFullPath(exportFolder),
-            StringComparison.OrdinalIgnoreCase)
+        return PathsReferToSameLocation(sessionFolder, exportFolder)
             ? Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", $"{sessionId}-export")
             : exportFolder;
+    }
+
+    private static bool PathsReferToSameLocation(string firstPath, string secondPath)
+    {
+        var first = ResolveComparablePath(firstPath);
+        var second = ResolveComparablePath(secondPath);
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(first, second, comparison);
+    }
+
+    private static string ResolveComparablePath(string path)
+    {
+        var fullPath = Path.GetFullPath(path)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        try
+        {
+            return Directory.Exists(fullPath)
+                ? (Directory.ResolveLinkTarget(fullPath, returnFinalTarget: true)?.FullName ?? fullPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                : fullPath;
+        }
+        catch (IOException)
+        {
+            return fullPath;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return fullPath;
+        }
     }
 }

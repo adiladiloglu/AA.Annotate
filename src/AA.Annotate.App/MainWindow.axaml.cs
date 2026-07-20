@@ -1,4 +1,3 @@
-using System.Drawing.Imaging;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
@@ -10,32 +9,28 @@ using AA.Annotate.Core.Models;
 using AA.Annotate.Core.Serialization;
 using AA.Annotate.Core.Services;
 using AA.Annotate.Platform;
-using AA.Annotate.Platform.Windows;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
-using DrawingBitmap = System.Drawing.Bitmap;
-using DrawingGraphics = System.Drawing.Graphics;
-using DrawingGraphicsUnit = System.Drawing.GraphicsUnit;
-using DrawingRectangle = System.Drawing.Rectangle;
 
 namespace AA.Annotate.App;
 
 public partial class MainWindow : Window
 {
     private const int MinimumAnnotationSize = AnnotationRectPolicy.MinimumSize;
-    private const double CompactChromeClipPadding = 24;
     private const string GitHubRepositoryUrl = "https://github.com/adiladiloglu/AA.Annotate";
     private static readonly TimeSpan ActivityWriteInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
     private readonly AnnotationSessionViewModel _session = new();
     private readonly SessionStore _store = new();
     private readonly SessionExporter _exporter = new(new AnnotationArtifactWriter());
-    private readonly IDisplayCatalog _displayCatalog = new WindowsDisplayCatalog();
-    private readonly IScreenCaptureService _captureService = new WindowsScreenCaptureService();
+    private readonly IDisplayCatalog _displayCatalog;
+    private readonly IScreenCaptureService _captureService;
+    private readonly IWindowIntegration _windowIntegration;
+    private readonly PortableImageCropWriter _cropWriter = new();
     private readonly HashSet<Control> _hoveredChromePanels = [];
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
@@ -59,7 +54,9 @@ public partial class MainWindow : Window
     private DateTimeOffset _idleWarningExpiresAtUtc;
     private DispatcherTimer? _idleTimer;
     private DispatcherTimer? _idleWarningTimer;
+    private DispatcherTimer? _captureHeartbeatTimer;
     private IDisposable? _nativeHitTestHook;
+    private CancellationTokenSource? _captureCancellation;
 
     public MainWindow()
         : this(null, null, null, null, null)
@@ -83,6 +80,10 @@ public partial class MainWindow : Window
         string? exportRoot,
         TimeSpan? idleTimeout)
     {
+        var platformServices = AppPlatformServices.Create();
+        _displayCatalog = new AvaloniaDisplayCatalog(() => Screens);
+        _captureService = platformServices.ScreenCapture;
+        _windowIntegration = platformServices.WindowIntegration;
         _providedSessionFolder = sessionFolder;
         _providedExportFolder = exportFolder;
         _providedSessionRoot = sessionRoot;
@@ -93,6 +94,7 @@ public partial class MainWindow : Window
         ConfigureChromePanelHover(DisplayDropdown);
         ConfigureChromePanelHover(CaptureDropdown);
         ConfigureChromePanelHover(AboutPanel);
+        ConfigureChromePanelHover(CaptureStatusPanel);
         Opened += OnOpened;
         Closing += OnClosing;
         AnnotationCanvas.PointerPressed += OnAnnotationPointerPressed;
@@ -129,6 +131,7 @@ public partial class MainWindow : Window
         IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
         IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
         AboutCloseButton.Click += (_, _) => CloseAboutPanel();
+        CaptureStatusDismissButton.Click += (_, _) => CloseCaptureStatusFeedback();
         AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
         AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -153,7 +156,7 @@ public partial class MainWindow : Window
     {
         if (TryGetPlatformHandle()?.Handle is { } handle)
         {
-            WindowsNativeWindowChrome.SuppressBorder(handle);
+            _windowIntegration.SuppressBorder(handle);
         }
     }
 
@@ -165,7 +168,9 @@ public partial class MainWindow : Window
         }
 
         _nativeHitTestHook?.Dispose();
-        _nativeHitTestHook = WindowsNativeWindowChrome.EnableTransparentHitTest(handle, ShouldHandleNativeHitTest);
+        _nativeHitTestHook = _windowIntegration.EnableTransparentHitTest(
+            handle,
+            ShouldHandleNativeHitTest);
     }
 
     private bool ShouldHandleNativeHitTest(int screenX, int screenY)
@@ -192,7 +197,7 @@ public partial class MainWindow : Window
             yield break;
         }
 
-        foreach (var control in new Control[] { CommandBar, DisplayDropdown, CaptureDropdown, AboutPanel, CommentEditor })
+        foreach (var control in new Control[] { CommandBar, CommentEditor })
         {
             if (TryGetVisibleControlWindowRect(control) is { } rect)
             {
@@ -249,6 +254,44 @@ public partial class MainWindow : Window
         var panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
         AboutPanel.Opacity = 1;
         AboutPanel.Background = panelBrush;
+    }
+
+    private bool IsDisplayDropdownOpen
+    {
+        get => DisplayDropdownPopup.IsOpen;
+        set
+        {
+            DisplayDropdownPopup.IsOpen = value;
+            ClearClosedPopupHover(DisplayDropdown, value);
+        }
+    }
+
+    private bool IsCaptureDropdownOpen
+    {
+        get => CaptureDropdownPopup.IsOpen;
+        set
+        {
+            CaptureDropdownPopup.IsOpen = value;
+            ClearClosedPopupHover(CaptureDropdown, value);
+        }
+    }
+
+    private bool IsAboutPanelOpen
+    {
+        get => AboutPanelPopup.IsOpen;
+        set
+        {
+            AboutPanelPopup.IsOpen = value;
+            ClearClosedPopupHover(AboutPanel, value);
+        }
+    }
+
+    private void ClearClosedPopupHover(Control panel, bool isOpen)
+    {
+        if (!isOpen && _hoveredChromePanels.Remove(panel))
+        {
+            UpdateChromePanelHoverState();
+        }
     }
 
     private static void OpenGitHubRepository()
@@ -463,8 +506,8 @@ public partial class MainWindow : Window
         Position = new PixelPoint(
             bounds.X + (int)Math.Round(footprint.X * scaling),
             bounds.Y + (int)Math.Round(footprint.Y * scaling));
-        Width = Math.Ceiling(footprint.Width + CompactChromeClipPadding);
-        Height = Math.Ceiling(footprint.Height + CompactChromeClipPadding);
+        Width = Math.Ceiling(footprint.Width);
+        Height = Math.Ceiling(footprint.Height);
     }
 
     private void ToggleDisplayDropdown()
@@ -474,9 +517,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        DisplayDropdown.IsVisible = !DisplayDropdown.IsVisible;
-        CaptureDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsDisplayDropdownOpen = !IsDisplayDropdownOpen;
+        IsCaptureDropdownOpen = false;
+        IsAboutPanelOpen = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
     }
@@ -488,9 +531,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        AboutPanel.IsVisible = !AboutPanel.IsVisible;
-        DisplayDropdown.IsVisible = false;
-        CaptureDropdown.IsVisible = false;
+        IsAboutPanelOpen = !IsAboutPanelOpen;
+        IsDisplayDropdownOpen = false;
+        IsCaptureDropdownOpen = false;
         CommentEditor.IsVisible = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
@@ -498,7 +541,7 @@ public partial class MainWindow : Window
 
     private void CloseAboutPanel()
     {
-        AboutPanel.IsVisible = false;
+        IsAboutPanelOpen = false;
         ApplyCurrentWindowMode();
         UpdateChrome();
     }
@@ -511,8 +554,8 @@ public partial class MainWindow : Window
         }
 
         StoreCurrentCrop();
-        DisplayDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsDisplayDropdownOpen = false;
+        IsAboutPanelOpen = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         SetActiveDisplay(display, IsBlockingSurfaceActive());
@@ -535,62 +578,203 @@ public partial class MainWindow : Window
 
         StoreCurrentCrop();
         var previousCapture = _session.CurrentCapture;
-        _isCapturing = true;
-        DisplayDropdown.IsVisible = false;
-        CaptureDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
-        CommentEditor.IsVisible = false;
-        CropOverlay.IsVisible = false;
-        RefreshCropMaskVisibility(forceHidden: true);
-
         var display = _activeDisplay ?? GetDisplayContainingWindow();
-        SetActiveDisplay(display, fullscreen: true);
-
-        Hide();
-        await Task.Delay(180);
-
         var number = _session.Captures.Count + 1;
         var screenshotPath = Path.Combine(_paths.WorkingCapturesFolder, $"{number:00}-screen.png");
-        var captured = await _captureService.CaptureScreenAsync(display, screenshotPath);
         var thumbnailPath = Path.Combine(_paths.WorkingCapturesFolder, $"{number:00}-thumb.png");
-        File.Copy(captured.ScreenshotPath, thumbnailPath, overwrite: true);
-
-        Show();
-        SetActiveDisplay(display, fullscreen: true);
-        Activate();
-
-        var capture = new CaptureViewModel(
-            Guid.NewGuid().ToString("N"),
-            number,
-            captured.Display,
-            captured.ScreenshotPath,
-            thumbnailPath,
-            captured.PixelSize,
-            captured.Display.Bounds,
-            isSelected: true);
-        CaptureCropInheritancePolicy.TryCopyCrop(previousCapture, capture);
-
-        foreach (var existing in _session.Captures)
+        var attemptPaths = new HashSet<string>(StringComparer.Ordinal)
         {
-            existing.IsSelected = false;
-        }
+            screenshotPath,
+            thumbnailPath
+        };
+        var previousUi = new CaptureUiState(
+            _session.Mode,
+            IsDisplayDropdownOpen,
+            IsCaptureDropdownOpen,
+            IsAboutPanelOpen,
+            CommentEditor.IsVisible,
+            CropOverlay.IsVisible);
+        var captureCommitted = false;
+        CaptureViewModel? addedCapture = null;
+        CaptureOutcomeFeedback? captureFeedback = null;
+        _captureCancellation = new CancellationTokenSource();
+        var cancellationToken = _captureCancellation.Token;
 
-        _session.Captures.Add(capture);
-        SelectCapture(capture);
-        if (activateAnnotationAfterCapture)
+        try
         {
-            SetAnnotationMode(true);
-        }
+            CloseCaptureStatusFeedback();
+            StartCaptureHeartbeat();
+            _isCapturing = true;
+            _session.Mode = AnnotationInteractionMode.Capturing;
+            IsDisplayDropdownOpen = false;
+            IsCaptureDropdownOpen = false;
+            IsAboutPanelOpen = false;
+            CommentEditor.IsVisible = false;
+            CropOverlay.IsVisible = false;
+            RefreshCropMaskVisibility(forceHidden: true);
+            SetActiveDisplay(display, fullscreen: true);
 
-        _isCapturing = false;
-        UpdateChrome();
+            var platformHandle = TryGetPlatformHandle();
+            Hide();
+            await Task.Delay(TimeSpan.FromMilliseconds(180), cancellationToken);
+
+            var result = await _captureService.CaptureScreenAsync(new ScreenCaptureRequest(
+                screenshotPath,
+                display,
+                IncludeCursor: false,
+                CancellationToken: cancellationToken,
+                ParentWindow: platformHandle is null ||
+                    string.IsNullOrWhiteSpace(platformHandle.HandleDescriptor)
+                    ? null
+                    : new NativeWindowReference(
+                        platformHandle.Handle,
+                        platformHandle.HandleDescriptor)));
+            if (!result.IsCompleted || result.CapturedScreen is not { } captured)
+            {
+                captureFeedback = CaptureOutcomeFeedbackPolicy.Create(result.Outcome);
+                Debug.WriteLine($"Screen capture ended with {result.Outcome}: {result.ErrorMessage}");
+                return;
+            }
+
+            attemptPaths.Add(captured.ScreenshotPath);
+            File.Copy(captured.ScreenshotPath, thumbnailPath, overwrite: true);
+
+            var capture = new CaptureViewModel(
+                Guid.NewGuid().ToString("N"),
+                number,
+                captured.Display,
+                captured.ScreenshotPath,
+                thumbnailPath,
+                captured.PixelSize,
+                captured.Display.Bounds,
+                isSelected: true);
+            CaptureCropInheritancePolicy.TryCopyCrop(previousCapture, capture);
+
+            foreach (var existing in _session.Captures)
+            {
+                existing.IsSelected = false;
+            }
+
+            _session.Captures.Add(capture);
+            addedCapture = capture;
+            SelectCapture(capture);
+            if (activateAnnotationAfterCapture)
+            {
+                SetAnnotationMode(true);
+            }
+            else
+            {
+                _session.Mode = AnnotationInteractionMode.Idle;
+            }
+
+            captureCommitted = true;
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine("Screen capture was cancelled.");
+        }
+        catch (Exception exception)
+        {
+            captureFeedback = CaptureOutcomeFeedbackPolicy.Create(ScreenCaptureOutcome.Failed);
+            Debug.WriteLine($"Screen capture failed: {exception}");
+        }
+        finally
+        {
+            _isCapturing = false;
+            _captureCancellation.Dispose();
+            _captureCancellation = null;
+
+            if (!captureCommitted)
+            {
+                if (addedCapture is not null)
+                {
+                    _session.Captures.Remove(addedCapture);
+                    if (previousCapture is not null)
+                    {
+                        SelectCapture(previousCapture);
+                    }
+                }
+
+                foreach (var path in attemptPaths)
+                {
+                    TryDeleteFile(path);
+                }
+
+                RestoreCaptureUi(previousUi);
+            }
+
+            if (!_hasTerminalStatus)
+            {
+                StopCaptureHeartbeat();
+                Show();
+                ApplyCurrentWindowMode();
+                RefreshCropMaskVisibility();
+                UpdateChrome();
+                Activate();
+                ResetIdleTimer();
+                if (captureFeedback is not null)
+                {
+                    ShowCaptureStatusFeedback(captureFeedback);
+                }
+            }
+        }
+    }
+
+    private void ShowCaptureStatusFeedback(CaptureOutcomeFeedback feedback)
+    {
+        IsDisplayDropdownOpen = false;
+        IsCaptureDropdownOpen = false;
+        IsAboutPanelOpen = false;
+        CaptureStatusTitleText.Text = feedback.Title;
+        CaptureStatusMessageText.Text = feedback.Message;
+        CaptureStatusPopup.IsOpen = true;
+    }
+
+    private void CloseCaptureStatusFeedback()
+    {
+        CaptureStatusPopup.IsOpen = false;
+        ClearClosedPopupHover(CaptureStatusPanel, isOpen: false);
+    }
+
+    private void StartCaptureHeartbeat()
+    {
+        StopIdleTimers();
+        _ = TouchActivityAsync();
+        _captureHeartbeatTimer ??= new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(5)
+        };
+        _captureHeartbeatTimer.Stop();
+        _captureHeartbeatTimer.Tick -= OnCaptureHeartbeat;
+        _captureHeartbeatTimer.Tick += OnCaptureHeartbeat;
+        _captureHeartbeatTimer.Start();
+    }
+
+    private void OnCaptureHeartbeat(object? sender, EventArgs e)
+    {
+        _ = TouchActivityAsync();
+    }
+
+    private void StopCaptureHeartbeat()
+    {
+        _captureHeartbeatTimer?.Stop();
+    }
+
+    private void RestoreCaptureUi(CaptureUiState state)
+    {
+        _session.Mode = state.Mode;
+        IsDisplayDropdownOpen = state.DisplayDropdownVisible;
+        IsCaptureDropdownOpen = state.CaptureDropdownVisible;
+        IsAboutPanelOpen = state.AboutPanelVisible;
+        CommentEditor.IsVisible = state.CommentEditorVisible;
+        CropOverlay.IsVisible = state.CropOverlayVisible;
     }
 
     private async Task RequestCaptureAsync()
     {
         if (!CanUseCaptureControls())
         {
-            CaptureDropdown.IsVisible = false;
+            IsCaptureDropdownOpen = false;
             UpdateChrome();
             return;
         }
@@ -681,7 +865,7 @@ public partial class MainWindow : Window
             _session.Mode = AnnotationInteractionMode.Idle;
             CommentEditor.IsVisible = false;
             CropOverlay.IsVisible = false;
-            AboutPanel.IsVisible = false;
+            IsAboutPanelOpen = false;
             RefreshCropMaskVisibility();
             ApplyCurrentWindowMode();
             UpdateChrome();
@@ -694,9 +878,9 @@ public partial class MainWindow : Window
             SetActiveDisplay(display, fullscreen: true);
         }
 
-        DisplayDropdown.IsVisible = false;
-        CaptureDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsDisplayDropdownOpen = false;
+        IsCaptureDropdownOpen = false;
+        IsAboutPanelOpen = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility();
@@ -727,7 +911,7 @@ public partial class MainWindow : Window
             _session.Mode = AnnotationInteractionMode.Idle;
             CommentEditor.IsVisible = false;
             CropOverlay.IsVisible = false;
-            AboutPanel.IsVisible = false;
+            IsAboutPanelOpen = false;
             RefreshCropMaskVisibility();
             ApplyCurrentWindowMode();
             UpdateChrome();
@@ -740,9 +924,9 @@ public partial class MainWindow : Window
             SetActiveDisplay(display, fullscreen: true);
         }
 
-        DisplayDropdown.IsVisible = false;
-        CaptureDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsDisplayDropdownOpen = false;
+        IsCaptureDropdownOpen = false;
+        IsAboutPanelOpen = false;
         CommentEditor.IsVisible = false;
         CropOverlay.IsVisible = false;
         RefreshCropMaskVisibility();
@@ -815,14 +999,9 @@ public partial class MainWindow : Window
 
     private Rect MeasureVisibleChromeFootprint()
     {
-        var controls = new Control[] { CommandBar, DisplayDropdown, CaptureDropdown, AboutPanel }
-            .Where(control => control.IsVisible)
-            .Select(GetCanvasBounds)
-            .ToList();
-
-        return controls.Count == 0
-            ? new Rect(0, 0, 1, 1)
-            : controls.Aggregate((current, next) => current.Union(next));
+        return CommandBar.IsVisible
+            ? GetCanvasBounds(CommandBar)
+            : new Rect(0, 0, 1, 1);
     }
 
     private static Rect GetCanvasBounds(Control control)
@@ -861,8 +1040,8 @@ public partial class MainWindow : Window
 
     private void SelectCaptureForAnnotation(CaptureViewModel capture)
     {
-        CaptureDropdown.IsVisible = false;
-        DisplayDropdown.IsVisible = false;
+        IsCaptureDropdownOpen = false;
+        IsDisplayDropdownOpen = false;
         if (_activeDisplay is { } display)
         {
             SetActiveDisplay(display, fullscreen: true);
@@ -927,7 +1106,7 @@ public partial class MainWindow : Window
         BlurredCropMask.SetImage(null);
         BlurredCropMask.IsVisible = false;
         CommentEditor.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsAboutPanelOpen = false;
         CropOverlay.IsVisible = false;
         AnnotationCanvas.Children.Clear();
         UpdateChrome();
@@ -961,17 +1140,17 @@ public partial class MainWindow : Window
     {
         if (!CanUseCaptureControls())
         {
-            CaptureDropdown.IsVisible = false;
+            IsCaptureDropdownOpen = false;
             UpdateChrome();
             return;
         }
 
-        CaptureDropdown.IsVisible = !CaptureDropdown.IsVisible;
-        _session.Mode = CaptureDropdown.IsVisible
+        IsCaptureDropdownOpen = !IsCaptureDropdownOpen;
+        _session.Mode = IsCaptureDropdownOpen
             ? AnnotationInteractionMode.CaptureDropdownOpen
             : AnnotationInteractionMode.Idle;
-        DisplayDropdown.IsVisible = false;
-        AboutPanel.IsVisible = false;
+        IsDisplayDropdownOpen = false;
+        IsAboutPanelOpen = false;
         UpdateChrome();
         ApplyCurrentWindowMode();
     }
@@ -991,7 +1170,7 @@ public partial class MainWindow : Window
             CommandBar.SetAnnotationActive(false);
             CommandBar.SetPrivacyMaskActive(false);
             _session.Mode = AnnotationInteractionMode.EditingCrop;
-            AboutPanel.IsVisible = false;
+            IsAboutPanelOpen = false;
             if (_activeDisplay is { } display)
             {
                 SetActiveDisplay(display, fullscreen: true);
@@ -1538,6 +1717,7 @@ public partial class MainWindow : Window
 
     private async Task CancelAsync()
     {
+        _captureCancellation?.Cancel();
         StopIdleTimers();
         if (_paths is not null)
         {
@@ -1550,6 +1730,7 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
+        _captureCancellation?.Cancel();
         DisposeNativeHitTestHook();
         if (_hasTerminalStatus || _paths is null)
         {
@@ -1571,6 +1752,7 @@ public partial class MainWindow : Window
     {
         _idleTimer?.Stop();
         _idleWarningTimer?.Stop();
+        StopCaptureHeartbeat();
     }
 
     private void StoreActiveComment()
@@ -1639,16 +1821,7 @@ public partial class MainWindow : Window
 
         var crop = ClampCrop(cropRect, capture.ScreenshotPixelSize);
         var cropPath = Path.Combine(_paths.WorkingCapturesFolder, $"{capture.Number:00}-crop.png");
-        using var source = new DrawingBitmap(capture.ScreenshotPath);
-        using var target = new DrawingBitmap(crop.Width, crop.Height);
-        using var graphics = DrawingGraphics.FromImage(target);
-        graphics.DrawImage(
-            source,
-            new DrawingRectangle(0, 0, crop.Width, crop.Height),
-            new DrawingRectangle(crop.X, crop.Y, crop.Width, crop.Height),
-            DrawingGraphicsUnit.Pixel);
-        target.Save(cropPath, ImageFormat.Png);
-        return cropPath;
+        return _cropWriter.WriteCrop(capture.ScreenshotPath, cropPath, crop);
     }
 
     private static RectInt ClampCrop(RectInt crop, SizeInt size)
@@ -1670,7 +1843,7 @@ public partial class MainWindow : Window
         CaptureDropdown.SetCaptures(_session.Captures);
         CaptureDropdown.SetCanCreateCapture(canUseCaptureControls);
         DisplayDropdown.SetDisplays(CreateDisplayViewModels());
-        if (CaptureDropdown.IsVisible)
+        if (IsCaptureDropdownOpen)
         {
             Dispatcher.UIThread.Post(ApplyCurrentWindowMode);
         }
@@ -1693,7 +1866,7 @@ public partial class MainWindow : Window
             .Select((display, index) => new DisplayViewModel(
                 displayNumbers[index],
                 display,
-                string.Equals(display.Id, current.Id, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(display.Id, current.Id, StringComparison.Ordinal)))
             .ToList();
     }
 
@@ -1773,6 +1946,14 @@ public partial class MainWindow : Window
             }
         };
     }
+
+    private sealed record CaptureUiState(
+        AnnotationInteractionMode Mode,
+        bool DisplayDropdownVisible,
+        bool CaptureDropdownVisible,
+        bool AboutPanelVisible,
+        bool CommentEditorVisible,
+        bool CropOverlayVisible);
 
     private void PositionDraftWarning(RectInt rect)
     {

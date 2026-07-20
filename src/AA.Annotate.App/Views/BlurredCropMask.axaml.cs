@@ -1,12 +1,8 @@
+using AA.Annotate.App.Services;
 using AA.Annotate.Core.Geometry;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
-using DrawingBitmap = System.Drawing.Bitmap;
-using DrawingGraphics = System.Drawing.Graphics;
-using DrawingInterpolationMode = System.Drawing.Drawing2D.InterpolationMode;
-using DrawingPixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode;
-using DrawingSmoothingMode = System.Drawing.Drawing2D.SmoothingMode;
 
 namespace AA.Annotate.App.Views;
 
@@ -39,30 +35,7 @@ public partial class BlurredCropMask : UserControl
             return null;
         }
 
-        using var source = new DrawingBitmap(path);
-        var smallWidth = Math.Max(1, source.Width / BlurScale);
-        var smallHeight = Math.Max(1, source.Height / BlurScale);
-        using var small = new DrawingBitmap(smallWidth, smallHeight);
-        using (var graphics = DrawingGraphics.FromImage(small))
-        {
-            graphics.InterpolationMode = DrawingInterpolationMode.HighQualityBilinear;
-            graphics.SmoothingMode = DrawingSmoothingMode.HighSpeed;
-            graphics.PixelOffsetMode = DrawingPixelOffsetMode.HighSpeed;
-            graphics.DrawImage(source, 0, 0, smallWidth, smallHeight);
-        }
-
-        using var blurred = new DrawingBitmap(source.Width, source.Height);
-        using (var graphics = DrawingGraphics.FromImage(blurred))
-        {
-            graphics.InterpolationMode = DrawingInterpolationMode.HighQualityBicubic;
-            graphics.SmoothingMode = DrawingSmoothingMode.HighQuality;
-            graphics.PixelOffsetMode = DrawingPixelOffsetMode.HighQuality;
-            graphics.DrawImage(small, 0, 0, source.Width, source.Height);
-        }
-
-        var stream = new MemoryStream();
-        blurred.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-        stream.Position = 0;
+        using var stream = PortableImageOperations.CreateBlurredPreview(path, BlurScale);
         return new Bitmap(stream);
     }
 

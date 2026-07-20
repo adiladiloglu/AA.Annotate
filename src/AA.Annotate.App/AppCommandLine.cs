@@ -4,8 +4,8 @@ internal static class AppCommandLine
 {
     public const string HelpText = """
         Usage:
-          AA.Annotate.App.exe [--session <folder>] [--export <folder>] [--session-root <folder>] [--export-root <folder>] [--idle-timeout-seconds <seconds>]
-          AA.Annotate.App.exe --help
+          AA.Annotate.App [--session <folder>] [--export <folder>] [--session-root <folder>] [--export-root <folder>] [--idle-timeout-seconds <seconds>]
+          AA.Annotate.App --help
 
         Options:
           --session <folder>                  Use an existing session folder created by the CLI.

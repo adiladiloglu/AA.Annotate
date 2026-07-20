@@ -19,7 +19,7 @@ internal static class CaptureCropInheritancePolicy
 
     private static bool IsSameScreen(CaptureViewModel source, CaptureViewModel target)
     {
-        return string.Equals(source.Display.Id, target.Display.Id, StringComparison.OrdinalIgnoreCase) &&
+        return string.Equals(source.Display.Id, target.Display.Id, StringComparison.Ordinal) &&
             source.ScreenBounds == target.ScreenBounds &&
             source.ScreenshotPixelSize == target.ScreenshotPixelSize;
     }

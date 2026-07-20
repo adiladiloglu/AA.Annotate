@@ -1,20 +1,7 @@
-using System.Drawing.Imaging;
 using AA.Annotate.Core.Geometry;
 using AA.Annotate.Core.Models;
 using AA.Annotate.Core.Services;
-using DrawingBitmap = System.Drawing.Bitmap;
-using DrawingBrushes = System.Drawing.Brushes;
-using DrawingColor = System.Drawing.Color;
-using DrawingFont = System.Drawing.Font;
-using DrawingFontStyle = System.Drawing.FontStyle;
-using DrawingGraphics = System.Drawing.Graphics;
-using DrawingGraphicsUnit = System.Drawing.GraphicsUnit;
-using DrawingInterpolationMode = System.Drawing.Drawing2D.InterpolationMode;
-using DrawingPen = System.Drawing.Pen;
-using DrawingRectangle = System.Drawing.Rectangle;
-using DrawingSolidBrush = System.Drawing.SolidBrush;
-using DrawingStringFormat = System.Drawing.StringFormat;
-using DrawingStringTrimming = System.Drawing.StringTrimming;
+using SkiaSharp;
 
 namespace AA.Annotate.App.Services;
 
@@ -28,12 +15,12 @@ public sealed class AnnotationArtifactWriter : IAnnotationArtifactWriter
         cancellationToken.ThrowIfCancellationRequested();
 
         Directory.CreateDirectory(paths.CapturesFolder);
-        using var source = new DrawingBitmap(capture.ScreenshotPath);
+        using var source = PortableImageOperations.Load(capture.ScreenshotPath);
         using var exportedSource = CreateExportedSource(source, capture);
         var annotations = ScaleAnnotations(capture.Annotations, capture.ExportScalePercent);
         var privacyMasks = ScalePrivacyMasks(capture.PrivacyMasks, capture.ExportScalePercent);
         var primaryPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-export.png");
-        exportedSource.Save(primaryPath, ImageFormat.Png);
+        PortableImageOperations.SavePng(exportedSource, primaryPath);
         var croppedPath = string.IsNullOrWhiteSpace(capture.CroppedPath) ? null : primaryPath;
         var thumbnailPath = primaryPath;
 
@@ -65,7 +52,7 @@ public sealed class AnnotationArtifactWriter : IAnnotationArtifactWriter
             }
 
             var annotationPath = Path.Combine(paths.CapturesFolder, $"{capture.Number:00}-annotation-{annotation.Number:00}.png");
-            WriteAnnotationImage(exportedSource, rect, annotationPath);
+            PortableImageOperations.WriteCrop(exportedSource, rect, annotationPath);
             exportedAnnotations.Add(annotation with { ImagePath = annotationPath });
         }
 
@@ -81,50 +68,58 @@ public sealed class AnnotationArtifactWriter : IAnnotationArtifactWriter
         });
     }
 
-    private static DrawingBitmap CreateExportedSource(DrawingBitmap source, AnnotationCapture capture)
+    private static SKBitmap CreateExportedSource(SKBitmap source, AnnotationCapture capture)
     {
-        var scalePercent = ClampScalePercent(capture.ExportScalePercent);
-        using var redacted = new DrawingBitmap(source.Width, source.Height);
-        using (var graphics = DrawingGraphics.FromImage(redacted))
+        // Redaction intentionally happens at source resolution. Scaling first could
+        // blend private source pixels into the edge of a mask.
+        using var redacted = PortableImageOperations.Clone(source);
+        using (var canvas = new SKCanvas(redacted))
         {
-            graphics.DrawImage(source, 0, 0, source.Width, source.Height);
             foreach (var mask in capture.PrivacyMasks ?? [])
             {
-                DrawPrivacyMask(graphics, mask.BoxRect, source.Width, source.Height);
+                DrawPrivacyMask(canvas, mask.BoxRect, source.Width, source.Height);
             }
         }
 
+        var scalePercent = ClampScalePercent(capture.ExportScalePercent);
         if (scalePercent == 100)
         {
-            return new DrawingBitmap(redacted);
+            return PortableImageOperations.Clone(redacted);
         }
 
         var width = Math.Max(1, (int)Math.Round(redacted.Width * scalePercent / 100d));
         var height = Math.Max(1, (int)Math.Round(redacted.Height * scalePercent / 100d));
-        var resized = new DrawingBitmap(width, height);
-        using var resizeGraphics = DrawingGraphics.FromImage(resized);
-        resizeGraphics.InterpolationMode = DrawingInterpolationMode.HighQualityBicubic;
-        resizeGraphics.DrawImage(redacted, new DrawingRectangle(0, 0, width, height));
-        return resized;
+        return PortableImageOperations.Resize(redacted, width, height);
     }
 
-    private static void DrawPrivacyMask(DrawingGraphics graphics, RectInt mask, int width, int height)
+    private static void DrawPrivacyMask(SKCanvas canvas, RectInt mask, int width, int height)
     {
         var rect = ClampRect(mask, width, height);
-        using var fill = new DrawingSolidBrush(DrawingColor.Black);
-        graphics.FillRectangle(fill, rect);
+        var skRect = PortableImageOperations.ToSkRect(rect);
+        using var fill = new SKPaint
+        {
+            Color = SKColors.Black,
+            IsAntialias = false,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(skRect, fill);
 
         var fontSize = Math.Clamp(Math.Min(rect.Width / 8f, rect.Height / 3f), 8f, 18f);
-        using var font = new DrawingFont("Segoe UI", fontSize, DrawingFontStyle.Bold);
-        using var format = new DrawingStringFormat
+        using var text = PortableImageOperations.CreateTextPaint(fontSize, SKColors.White);
+        var label = "Privacy mask";
+        var measuredWidth = text.MeasureText(label);
+        if (measuredWidth > rect.Width - 4)
         {
-            Alignment = System.Drawing.StringAlignment.Center,
-            LineAlignment = System.Drawing.StringAlignment.Center,
-            Trimming = DrawingStringTrimming.EllipsisCharacter,
-            FormatFlags = System.Drawing.StringFormatFlags.NoWrap
-        };
+            text.TextSize = Math.Max(6, text.TextSize * Math.Max(0.1f, (rect.Width - 4) / measuredWidth));
+        }
 
-        graphics.DrawString("Privacy mask", font, DrawingBrushes.White, rect, format);
+        var metrics = text.FontMetrics;
+        var x = rect.X + rect.Width / 2f;
+        var y = rect.Y + rect.Height / 2f - (metrics.Ascent + metrics.Descent) / 2f;
+        canvas.Save();
+        canvas.ClipRect(skRect);
+        canvas.DrawText(label, x, y, text);
+        canvas.Restore();
     }
 
     private static IReadOnlyList<Annotation> ScaleAnnotations(IReadOnlyList<Annotation> annotations, int scalePercent)
@@ -162,60 +157,67 @@ public sealed class AnnotationArtifactWriter : IAnnotationArtifactWriter
         return Math.Clamp(scalePercent, 20, 100);
     }
 
-    private static void WriteAnnotatedOverview(DrawingBitmap source, IReadOnlyList<Annotation> annotations, string path)
+    private static void WriteAnnotatedOverview(
+        SKBitmap source,
+        IReadOnlyList<Annotation> annotations,
+        string path)
     {
-        using var target = new DrawingBitmap(source.Width, source.Height);
-        using var graphics = DrawingGraphics.FromImage(target);
-        graphics.DrawImage(source, 0, 0, source.Width, source.Height);
-
+        using var target = PortableImageOperations.Clone(source);
+        using var canvas = new SKCanvas(target);
         foreach (var annotation in annotations.OrderBy(item => item.Number))
         {
-            DrawAnnotation(graphics, annotation, source.Width, source.Height);
+            DrawAnnotation(canvas, annotation, source.Width, source.Height);
         }
 
-        target.Save(path, ImageFormat.Png);
+        PortableImageOperations.SavePng(target, path);
     }
 
-    private static void WriteAnnotationImage(DrawingBitmap source, DrawingRectangle rect, string path)
-    {
-        using var target = new DrawingBitmap(rect.Width, rect.Height);
-        using var graphics = DrawingGraphics.FromImage(target);
-        graphics.DrawImage(
-            source,
-            new DrawingRectangle(0, 0, rect.Width, rect.Height),
-            rect,
-            DrawingGraphicsUnit.Pixel);
-        target.Save(path, ImageFormat.Png);
-    }
-
-    private static void DrawAnnotation(DrawingGraphics graphics, Annotation annotation, int width, int height)
+    private static void DrawAnnotation(SKCanvas canvas, Annotation annotation, int width, int height)
     {
         var rect = ClampRect(annotation.BoxRect, width, height);
-        using var pen = new DrawingPen(DrawingColor.FromArgb(242, 224, 165, 54), Math.Max(2, width / 900));
-        using var fill = new DrawingSolidBrush(DrawingColor.FromArgb(13, 224, 165, 54));
-        graphics.FillRectangle(fill, rect);
-        graphics.DrawRectangle(pen, rect);
+        var skRect = PortableImageOperations.ToSkRect(rect);
+        using var fill = new SKPaint
+        {
+            Color = new SKColor(224, 165, 54, 13),
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill
+        };
+        using var stroke = new SKPaint
+        {
+            Color = new SKColor(224, 165, 54, 242),
+            IsAntialias = true,
+            StrokeWidth = Math.Max(2, width / 900f),
+            Style = SKPaintStyle.Stroke
+        };
+        canvas.DrawRect(skRect, fill);
+        canvas.DrawRect(skRect, stroke);
 
         var badgeSize = Math.Max(26, width / 70);
-        var badge = new DrawingRectangle(rect.X, rect.Y, badgeSize, badgeSize);
-        using var badgeBrush = new DrawingSolidBrush(DrawingColor.FromArgb(245, 224, 165, 54));
-        using var font = new DrawingFont("Segoe UI", Math.Max(12, badgeSize * 0.48f), DrawingFontStyle.Bold);
-        using var format = new DrawingStringFormat
+        var badge = SKRect.Create(rect.X, rect.Y, badgeSize, badgeSize);
+        using var badgeBrush = new SKPaint
         {
-            Alignment = System.Drawing.StringAlignment.Center,
-            LineAlignment = System.Drawing.StringAlignment.Center
+            Color = new SKColor(224, 165, 54, 245),
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill
         };
+        using var text = PortableImageOperations.CreateTextPaint(Math.Max(12, badgeSize * 0.48f), SKColors.Black);
+        canvas.DrawRect(badge, badgeBrush);
 
-        graphics.FillRectangle(badgeBrush, badge);
-        graphics.DrawString(annotation.Number.ToString(), font, DrawingBrushes.Black, badge, format);
+        var label = annotation.Number.ToString();
+        var metrics = text.FontMetrics;
+        canvas.DrawText(
+            label,
+            badge.MidX,
+            badge.MidY - (metrics.Ascent + metrics.Descent) / 2f,
+            text);
     }
 
-    private static DrawingRectangle ClampRect(RectInt rect, int width, int height)
+    private static RectInt ClampRect(RectInt rect, int width, int height)
     {
         var x = Math.Clamp(rect.X, 0, Math.Max(0, width - 1));
         var y = Math.Clamp(rect.Y, 0, Math.Max(0, height - 1));
         var rectWidth = Math.Clamp(rect.Width, 1, width - x);
         var rectHeight = Math.Clamp(rect.Height, 1, height - y);
-        return new DrawingRectangle(x, y, rectWidth, rectHeight);
+        return new RectInt(x, y, rectWidth, rectHeight);
     }
 }

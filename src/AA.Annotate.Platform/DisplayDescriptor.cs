@@ -6,4 +6,6 @@ public sealed record DisplayDescriptor(
     string? Id,
     string? Name,
     RectInt Bounds,
-    bool IsPrimary);
+    bool IsPrimary,
+    string? NativeId = null,
+    double Scaling = 1);

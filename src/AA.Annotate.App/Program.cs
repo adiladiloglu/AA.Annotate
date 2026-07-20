@@ -57,6 +57,13 @@ internal static class Program
         var output = text.EndsWith(Environment.NewLine, StringComparison.Ordinal)
             ? text
             : text + Environment.NewLine;
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Console.Write(output);
+            return;
+        }
+
         var bytes = System.Text.Encoding.UTF8.GetBytes(output);
         var handle = GetStdHandle(StandardOutputHandle);
 
