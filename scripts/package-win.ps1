@@ -2,7 +2,7 @@ param(
     [string]$Runtime = 'win-x64',
     [string]$Configuration = 'Release',
     [string]$OutputRoot = 'artifacts\dist',
-    [string]$Version = '0.2.0',
+    [string]$Version = '0.3.0',
     [bool]$SelfContained = $true
 )
 

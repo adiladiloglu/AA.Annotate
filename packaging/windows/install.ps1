@@ -64,7 +64,9 @@ function Set-CodexMarketplaceEntry {
 
     $marketplaceFolder = Split-Path -Parent $Path
     New-Item -ItemType Directory -Path $marketplaceFolder -Force | Out-Null
-    $marketplace | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $Path -Encoding UTF8
+    $marketplaceJson = $marketplace | ConvertTo-Json -Depth 8
+    $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, $marketplaceJson + [Environment]::NewLine, $utf8WithoutBom)
 }
 
 function Install-CodexPlugin {
@@ -103,11 +105,44 @@ function Install-CodexPlugin {
         }
     }
 
+    $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+    if ($null -eq $codexCommand) {
+        throw 'Codex CLI is required when -InstallCodexPlugin is specified.'
+    }
+
+    $marketplace = Get-Content -LiteralPath $MarketplacePath -Raw | ConvertFrom-Json
+    $pluginSelector = "aa-annotate@$($marketplace.name)"
+    & $codexCommand.Source plugin add $pluginSelector
+    if ($LASTEXITCODE -ne 0) {
+        throw "Codex plugin activation failed: codex plugin add $pluginSelector"
+    }
+
+    $pluginVersion = (Get-Content -LiteralPath $pluginManifest -Raw | ConvertFrom-Json).version
+    $codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
+        Join-Path $env:USERPROFILE '.codex'
+    }
+    else {
+        $env:CODEX_HOME
+    }
+    $cachedPluginRoot = Join-Path $codexHome "plugins\cache\$($marketplace.name)\aa-annotate\$pluginVersion"
+
+    if (-not (Test-Path -LiteralPath $cachedPluginRoot)) {
+        & $codexCommand.Source plugin add $pluginSelector
+        if ($LASTEXITCODE -ne 0) {
+            throw "Codex plugin activation retry failed: codex plugin add $pluginSelector"
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $cachedPluginRoot)) {
+        throw "Codex plugin activation did not create the expected cache: $cachedPluginRoot"
+    }
+
     [ordered]@{
         Root = $pluginTarget
         Manifest = $pluginManifest
         CLI = $pluginCli
         Marketplace = $MarketplacePath
+        CacheRoot = $cachedPluginRoot
     }
 }
 
@@ -127,7 +162,6 @@ $cliTarget = Join-Path $InstallRoot 'cli'
 $skillTarget = Join-Path $SkillsRoot 'aa-annotate'
 
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $SkillsRoot -Force | Out-Null
 
 foreach ($target in @($appTarget, $cliTarget, $skillTarget)) {
     if (Test-Path -LiteralPath $target) {
@@ -137,7 +171,10 @@ foreach ($target in @($appTarget, $cliTarget, $skillTarget)) {
 
 Copy-Item -LiteralPath $appSource -Destination $appTarget -Recurse
 Copy-Item -LiteralPath $cliSource -Destination $cliTarget -Recurse
-Copy-Item -LiteralPath $skillSource -Destination $skillTarget -Recurse
+if (-not $InstallCodexPlugin) {
+    New-Item -ItemType Directory -Path $SkillsRoot -Force | Out-Null
+    Copy-Item -LiteralPath $skillSource -Destination $skillTarget -Recurse
+}
 
 $cliExe = Join-Path $cliTarget 'aa-annotate.exe'
 $appExe = Join-Path $appTarget 'AA.Annotate.App.exe'
@@ -166,16 +203,20 @@ if ($InstallCodexPlugin) {
 Write-Host "AA Annotate installed."
 Write-Host "App:   $appExe"
 Write-Host "CLI:   $cliExe"
-Write-Host "Skill: $skillTarget"
 if ($InstallCodexPlugin) {
+    Write-Host "Skill: $($pluginInstall.Root)\skills\aa-annotate"
     Write-Host "Plugin: $($pluginInstall.Root)"
+    Write-Host "Plugin cache: $($pluginInstall.CacheRoot)"
     Write-Host "Marketplace: $($pluginInstall.Marketplace)"
+}
+else {
+    Write-Host "Skill: $skillTarget"
 }
 Write-Host ""
 Write-Host "Run without PATH changes:"
 Write-Host "  & `"$cliExe`" session --wait"
 Write-Host ""
-Write-Host "Optional Codex plugin install:"
+Write-Host "Install as a Codex plugin instead of a standalone skill:"
 Write-Host "  .\install.ps1 -InstallCodexPlugin"
 Write-Host ""
 Write-Host "Optional user-scoped registration:"

@@ -147,7 +147,12 @@ function Invoke-PackagedInstaller {
 function Test-Installation {
     $appExe = Join-Path $InstallRoot 'app\AA.Annotate.App.exe'
     $cliExe = Join-Path $InstallRoot 'cli\aa-annotate.exe'
-    $skillFile = Join-Path $SkillsRoot 'aa-annotate\SKILL.md'
+    $skillFile = if ($InstallCodexPlugin) {
+        Join-Path $PluginsRoot 'aa-annotate\skills\aa-annotate\SKILL.md'
+    }
+    else {
+        Join-Path $SkillsRoot 'aa-annotate\SKILL.md'
+    }
 
     foreach ($requiredPath in @($appExe, $cliExe, $skillFile)) {
         if (-not (Test-Path -LiteralPath $requiredPath)) {
