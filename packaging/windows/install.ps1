@@ -112,9 +112,9 @@ function Install-CodexPlugin {
 
     $marketplace = Get-Content -LiteralPath $MarketplacePath -Raw | ConvertFrom-Json
     $pluginSelector = "aa-annotate@$($marketplace.name)"
-    & $codexCommand.Source plugin add $pluginSelector
+    $activationOutput = & $codexCommand.Source plugin add $pluginSelector 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
-        throw "Codex plugin activation failed: codex plugin add $pluginSelector"
+        throw "Codex plugin activation failed: codex plugin add $pluginSelector`n$activationOutput"
     }
 
     $pluginVersion = (Get-Content -LiteralPath $pluginManifest -Raw | ConvertFrom-Json).version
@@ -125,16 +125,30 @@ function Install-CodexPlugin {
         $env:CODEX_HOME
     }
     $cachedPluginRoot = Join-Path $codexHome "plugins\cache\$($marketplace.name)\aa-annotate\$pluginVersion"
+    $installedStatusPattern = "(?m)^$([regex]::Escape($pluginSelector))\s+installed,\s+enabled\s+"
+    $pluginListOutput = & $codexCommand.Source plugin list 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "Codex plugin status verification failed: codex plugin list`n$pluginListOutput"
+    }
 
-    if (-not (Test-Path -LiteralPath $cachedPluginRoot)) {
-        & $codexCommand.Source plugin add $pluginSelector
+    if ($pluginListOutput -notmatch $installedStatusPattern) {
+        $activationOutput = & $codexCommand.Source plugin add $pluginSelector 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) {
-            throw "Codex plugin activation retry failed: codex plugin add $pluginSelector"
+            throw "Codex plugin activation retry failed: codex plugin add $pluginSelector`n$activationOutput"
+        }
+
+        $pluginListOutput = & $codexCommand.Source plugin list 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "Codex plugin status verification retry failed: codex plugin list`n$pluginListOutput"
         }
     }
 
     if (-not (Test-Path -LiteralPath $cachedPluginRoot)) {
         throw "Codex plugin activation did not create the expected cache: $cachedPluginRoot"
+    }
+
+    if ($pluginListOutput -notmatch $installedStatusPattern) {
+        throw "Codex plugin is not installed and enabled after activation: $pluginSelector"
     }
 
     [ordered]@{

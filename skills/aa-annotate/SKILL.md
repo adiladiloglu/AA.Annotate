@@ -23,6 +23,8 @@ Launch the resolved CLI and wait:
 & "<absolute-cli-path>" session --wait
 ```
 
+- Invoke the executable directly with the shell call operator exactly as shown. Do not wrap it in `Start-Process`, `System.Diagnostics.Process`, `ProcessStartInfo`, a polling loop, or a timing helper.
+- In particular, do not use `ProcessStartInfo.ArgumentList`; it is `$null` in Windows PowerShell 5.1 on .NET Framework and the launch will fail before the CLI starts.
 - Add `--output "<folder>"` only when the user requests a specific export destination.
 - Add `--session-root "<folder>"` only when debugging AA Annotate itself.
 - Use a tool timeout that covers expected user interaction plus the app's inactivity warning period.

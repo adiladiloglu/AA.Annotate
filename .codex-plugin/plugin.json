@@ -1,6 +1,6 @@
 {
   "name": "aa-annotate",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Launch a desktop annotation overlay so users can mask private regions, mark screenshots, and return a visual handoff to Codex.",
   "author": {
     "name": "Adil Adiloglu",

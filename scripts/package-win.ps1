@@ -2,7 +2,7 @@ param(
     [string]$Runtime = 'win-x64',
     [string]$Configuration = 'Release',
     [string]$OutputRoot = 'artifacts\dist',
-    [string]$Version = '0.3.0',
+    [string]$Version = '0.3.1',
     [bool]$SelfContained = $true
 )
 
@@ -67,7 +67,6 @@ $manifest = [ordered]@{
     license = 'Apache-2.0'
     runtime = $Runtime
     selfContained = $SelfContained
-    createdAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
     appExecutable = 'app/AA.Annotate.App.exe'
     cliExecutable = 'cli/aa-annotate.exe'
     skill = 'skills/aa-annotate'
