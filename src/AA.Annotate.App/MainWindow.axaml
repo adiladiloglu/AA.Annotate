@@ -170,7 +170,7 @@
         </StackPanel>
       </Border>
     </Grid>
-    <Grid Name="CompletionConfirmationOverlay"
+    <Grid Name="SessionConfirmationOverlay"
           IsVisible="False"
           Focusable="True"
           Background="#A0000000">
@@ -183,24 +183,24 @@
               BorderThickness="1"
               CornerRadius="10">
         <StackPanel Spacing="14">
-          <TextBlock Name="CompletionConfirmationTitleText"
+          <TextBlock Name="SessionConfirmationTitleText"
                      Text="Finish annotation session?"
                      Foreground="White"
                      FontSize="18"
                      FontWeight="SemiBold" />
-          <TextBlock Name="CompletionConfirmationMessageText"
+          <TextBlock Name="SessionConfirmationMessageText"
                      Foreground="#EAF7FBFF"
                      FontSize="13"
                      TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal"
                       HorizontalAlignment="Right"
                       Spacing="8">
-            <Button Name="CompletionConfirmationCancelButton"
+            <Button Name="SessionConfirmationCancelButton"
                     Classes="iconButton"
                     MinWidth="104"
                     Height="36"
                     Content="Keep editing" />
-            <Button Name="CompletionConfirmationConfirmButton"
+            <Button Name="SessionConfirmationConfirmButton"
                     Classes="confirmButton"
                     MinWidth="104"
                     Height="36"

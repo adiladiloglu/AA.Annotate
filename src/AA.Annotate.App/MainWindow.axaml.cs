@@ -61,7 +61,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _captureHeartbeatTimer;
     private IDisposable? _nativeHitTestHook;
     private CancellationTokenSource? _captureCancellation;
-    private TaskCompletionSource<bool>? _completionConfirmation;
+    private TaskCompletionSource<bool>? _sessionConfirmation;
     private bool _isFinishing;
 
     public MainWindow()
@@ -130,7 +130,7 @@ public partial class MainWindow : Window
         CaptureScaleSelector.ScaleChanged += (_, percent) => SetCurrentCaptureScalePercent(percent);
         CommandBar.FinishRequested += async (_, _) => await FinishAsync();
         CommandBar.AboutRequested += (_, _) => ToggleAboutPanel();
-        CommandBar.CancelRequested += async (_, _) => await CancelAsync();
+        CommandBar.CancelRequested += async (_, _) => await RequestCancelAsync();
         DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
         CaptureDropdown.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
         CaptureDropdown.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
@@ -151,9 +151,9 @@ public partial class MainWindow : Window
         IdleWarningContinueButton.Click += (_, _) => ContinueAfterIdleWarning();
         IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
         IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
-        CompletionConfirmationCancelButton.Click += (_, _) => CompleteFinishConfirmation(confirmed: false);
-        CompletionConfirmationConfirmButton.Click += (_, _) => CompleteFinishConfirmation(confirmed: true);
-        CompletionConfirmationOverlay.KeyDown += OnCompletionConfirmationKeyDown;
+        SessionConfirmationCancelButton.Click += (_, _) => CompleteSessionConfirmation(confirmed: false);
+        SessionConfirmationConfirmButton.Click += (_, _) => CompleteSessionConfirmation(confirmed: true);
+        SessionConfirmationOverlay.KeyDown += OnSessionConfirmationKeyDown;
         AboutCloseButton.Click += (_, _) => CloseAboutPanel();
         CaptureStatusDismissButton.Click += (_, _) => CloseCaptureStatusFeedback();
         AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
@@ -384,7 +384,7 @@ public partial class MainWindow : Window
 
     private void OnUserActivity(object? sender, RoutedEventArgs e)
     {
-        if (!IdleWarningOverlay.IsVisible && !CompletionConfirmationOverlay.IsVisible)
+        if (!IdleWarningOverlay.IsVisible && !SessionConfirmationOverlay.IsVisible)
         {
             ResetIdleTimer();
         }
@@ -1016,7 +1016,7 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || CompletionConfirmationOverlay.IsVisible);
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || SessionConfirmationOverlay.IsVisible);
     }
 
     private bool IsFullSurfaceInputActive()
@@ -1026,7 +1026,7 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || CompletionConfirmationOverlay.IsVisible);
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || SessionConfirmationOverlay.IsVisible);
     }
 
     private bool ShouldRenderCaptureSurface()
@@ -1768,7 +1768,7 @@ public partial class MainWindow : Window
         _isFinishing = true;
         try
         {
-            if (!await ConfirmFinishAsync())
+            if (!await ConfirmSessionActionAsync(SessionConfirmationPolicy.CreateFinish(_launchCaller)))
             {
                 return;
             }
@@ -1801,27 +1801,27 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<bool> ConfirmFinishAsync()
+    private async Task<bool> ConfirmSessionActionAsync(SessionConfirmationPresentation presentation)
     {
         var wasIdleWarningVisible = IdleWarningOverlay.IsVisible;
         _idleTimer?.Stop();
         _idleWarningTimer?.Stop();
-        CompletionConfirmationMessageText.Text = _launchCaller == LaunchCaller.Agent
-            ? "This will send the current captures and annotations to the agent. You cannot add more annotations after finishing."
-            : "This will export the current captures and annotations. You cannot add more annotations after finishing.";
-        CompletionConfirmationConfirmButton.Content = _launchCaller == LaunchCaller.Agent ? "Send" : "Export";
-        CompletionConfirmationOverlay.IsVisible = true;
-        CompletionConfirmationOverlay.Focus();
+        SessionConfirmationTitleText.Text = presentation.Title;
+        SessionConfirmationMessageText.Text = presentation.Message;
+        SessionConfirmationConfirmButton.Content = presentation.ConfirmText;
+        SetSessionConfirmationActionStyle(presentation.IsDestructive);
+        SessionConfirmationOverlay.IsVisible = true;
+        SessionConfirmationOverlay.Focus();
         if (_activeDisplay is { } display)
         {
             SetActiveDisplay(display, fullscreen: true);
         }
 
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _completionConfirmation = completion;
+        _sessionConfirmation = completion;
         var confirmed = await completion.Task;
-        _completionConfirmation = null;
-        CompletionConfirmationOverlay.IsVisible = false;
+        _sessionConfirmation = null;
+        SessionConfirmationOverlay.IsVisible = false;
         if (confirmed)
         {
             IdleWarningOverlay.IsVisible = false;
@@ -1842,21 +1842,28 @@ public partial class MainWindow : Window
         return false;
     }
 
-    private void CompleteFinishConfirmation(bool confirmed)
+    private void SetSessionConfirmationActionStyle(bool isDestructive)
     {
-        _completionConfirmation?.TrySetResult(confirmed);
+        SessionConfirmationConfirmButton.Classes.Remove("confirmButton");
+        SessionConfirmationConfirmButton.Classes.Remove("destructiveButton");
+        SessionConfirmationConfirmButton.Classes.Add(isDestructive ? "destructiveButton" : "confirmButton");
     }
 
-    private void OnCompletionConfirmationKeyDown(object? sender, KeyEventArgs e)
+    private void CompleteSessionConfirmation(bool confirmed)
+    {
+        _sessionConfirmation?.TrySetResult(confirmed);
+    }
+
+    private void OnSessionConfirmationKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
-            CompleteFinishConfirmation(confirmed: false);
+            CompleteSessionConfirmation(confirmed: false);
             e.Handled = true;
         }
         else if (e.Key == Key.Enter)
         {
-            CompleteFinishConfirmation(confirmed: true);
+            CompleteSessionConfirmation(confirmed: true);
             e.Handled = true;
         }
     }
@@ -1902,6 +1909,19 @@ public partial class MainWindow : Window
 
         _hasTerminalStatus = true;
         Close();
+    }
+
+    private async Task RequestCancelAsync()
+    {
+        if (_paths is null || _hasTerminalStatus || _sessionConfirmation is not null)
+        {
+            return;
+        }
+
+        if (await ConfirmSessionActionAsync(SessionConfirmationPolicy.CreateCancel()))
+        {
+            await CancelAsync();
+        }
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)

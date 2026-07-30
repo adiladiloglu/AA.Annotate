@@ -145,6 +145,20 @@ public partial class App : Application
                 new Setter(Button.PaddingProperty, new Thickness(0))
             }
         });
+        Styles.Add(new Style(selector => selector.OfType<Button>().Class("destructiveButton"))
+        {
+            Setters =
+            {
+                new Setter(Button.BackgroundProperty, Resources["InvalidAnnotationStrokeBrush"]),
+                new Setter(Button.BorderBrushProperty, Brush("#72FFFFFF")),
+                new Setter(Button.BorderThicknessProperty, new Thickness(1)),
+                new Setter(Button.ForegroundProperty, Brushes.White),
+                new Setter(Button.CornerRadiusProperty, new CornerRadius(8)),
+                new Setter(Button.HorizontalContentAlignmentProperty, Avalonia.Layout.HorizontalAlignment.Center),
+                new Setter(Button.VerticalContentAlignmentProperty, Avalonia.Layout.VerticalAlignment.Center),
+                new Setter(Button.PaddingProperty, new Thickness(0))
+            }
+        });
         Styles.Add(new Style(selector => selector.OfType<Button>().Class("commentTextButton"))
         {
             Setters =
