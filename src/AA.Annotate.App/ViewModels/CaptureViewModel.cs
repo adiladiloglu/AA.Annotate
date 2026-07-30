@@ -14,7 +14,8 @@ public sealed class CaptureViewModel
         string thumbnailPath,
         SizeInt screenshotPixelSize,
         RectInt screenBounds,
-        bool isSelected)
+        bool isSelected,
+        int exportScalePercent = 100)
     {
         CaptureId = captureId;
         Number = number;
@@ -27,6 +28,8 @@ public sealed class CaptureViewModel
         CropRect = CropPixelRect;
         ViewportSize = screenshotPixelSize;
         IsSelected = isSelected;
+        ExportScalePercent = ExportScalePercentParser.Clamp(exportScalePercent);
+        PreviewPixelSize = screenshotPixelSize;
     }
 
     public string CaptureId { get; }
@@ -51,9 +54,24 @@ public sealed class CaptureViewModel
 
     public bool IsSelected { get; set; }
 
+    public int ExportScalePercent { get; private set; }
+
+    public string? PreviewPath { get; private set; }
+
+    public SizeInt PreviewPixelSize { get; private set; }
+
+    public string DisplayImagePath => PreviewPath ?? ScreenshotPath;
+
     public ObservableCollection<AnnotationViewModel> Annotations { get; } = [];
 
     public ObservableCollection<PrivacyMaskViewModel> PrivacyMasks { get; } = [];
+
+    public void SetScalePreview(int exportScalePercent, string? previewPath, SizeInt previewPixelSize)
+    {
+        ExportScalePercent = ExportScalePercentParser.Clamp(exportScalePercent);
+        PreviewPath = ExportScalePercent == 100 ? null : previewPath;
+        PreviewPixelSize = ExportScalePercent == 100 ? ScreenshotPixelSize : previewPixelSize;
+    }
 
     public int GetNextAnnotationNumber()
     {

@@ -10,6 +10,7 @@ public partial class BlurredCropMask : UserControl
 {
     private const int BlurScale = 14;
     private RectInt? _crop;
+    private Bitmap? _source;
 
     public BlurredCropMask()
     {
@@ -26,6 +27,9 @@ public partial class BlurredCropMask : UserControl
             image.Source = source;
             image.Opacity = 0.95;
         }
+
+        _source?.Dispose();
+        _source = source;
     }
 
     private static Bitmap? CreateBlurredSource(string? path)

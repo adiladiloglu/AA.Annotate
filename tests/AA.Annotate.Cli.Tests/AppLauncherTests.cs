@@ -198,10 +198,24 @@ public sealed class AppLauncherTests
         Assert.Equal(@"C:\Tools\AA.Annotate.App.exe", startInfo.FileName);
         Assert.True(startInfo.UseShellExecute);
         Assert.Equal(
-            ["--session", @"C:\Temp\AA.Annotate\sessions\1", "--export", @"C:\Temp\AA.Annotate\exports\1", "--idle-timeout-seconds", "60"],
+            ["--session", @"C:\Temp\AA.Annotate\sessions\1", "--export", @"C:\Temp\AA.Annotate\exports\1", "--caller", "agent", "--default-scale", "100", "--idle-timeout-seconds", "60"],
             startInfo.ArgumentList);
     }
 
+    [Fact]
+    public void CreateStartInfoIncludesCallerAndCustomDefaultScale()
+    {
+        var startInfo = AppLauncher.CreateStartInfo(
+            @"C:\Tools\AA.Annotate.App.exe",
+            @"C:\Temp\session",
+            @"C:\Temp\export",
+            idleTimeout: null,
+            defaultScalePercent: 50);
+
+        Assert.Equal(
+            ["--session", @"C:\Temp\session", "--export", @"C:\Temp\export", "--caller", "agent", "--default-scale", "50"],
+            startInfo.ArgumentList);
+    }
     [Fact]
     public void CreateStartInfoDirectlyExecutesLinuxAppHost()
     {
@@ -248,7 +262,7 @@ public sealed class AppLauncherTests
         Assert.Equal("/opt/aa-annotate/AA.Annotate.App", startInfo.FileName);
         Assert.False(startInfo.UseShellExecute);
         Assert.Equal(
-            ["--session", "/tmp/aa annotate/session", "--export", "/tmp/aa annotate/export"],
+            ["--session", "/tmp/aa annotate/session", "--export", "/tmp/aa annotate/export", "--caller", "agent", "--default-scale", "100"],
             startInfo.ArgumentList);
     }
 

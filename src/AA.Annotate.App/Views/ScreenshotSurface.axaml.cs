@@ -12,8 +12,15 @@ public partial class ScreenshotSurface : UserControl
 
     public void SetImage(string? path)
     {
-        ScreenshotImage.Source = string.IsNullOrWhiteSpace(path) || !File.Exists(path)
-            ? null
-            : new Bitmap(path);
+        Bitmap? next = null;
+        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        {
+            using var stream = File.OpenRead(path);
+            next = new Bitmap(stream);
+        }
+
+        var previous = ScreenshotImage.Source as IDisposable;
+        ScreenshotImage.Source = next;
+        previous?.Dispose();
     }
 }

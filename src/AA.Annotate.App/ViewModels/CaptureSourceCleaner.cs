@@ -2,12 +2,20 @@ namespace AA.Annotate.App.ViewModels;
 
 internal static class CaptureSourceCleaner
 {
-    public static void DeleteRawSources(IEnumerable<CaptureViewModel> captures, int exportScalePercent)
+    public static void DeleteRawSources(IEnumerable<CaptureViewModel> captures)
     {
-        foreach (var capture in captures.Where(capture => CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture, exportScalePercent)))
+        foreach (var capture in captures)
         {
-            TryDeleteFile(capture.ScreenshotPath);
-            TryDeleteFile(capture.ThumbnailPath);
+            if (CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture))
+            {
+                TryDeleteFile(capture.ScreenshotPath);
+                TryDeleteFile(capture.ThumbnailPath);
+            }
+
+            if (capture.PreviewPath is { } previewPath)
+            {
+                TryDeleteFile(previewPath);
+            }
         }
     }
 

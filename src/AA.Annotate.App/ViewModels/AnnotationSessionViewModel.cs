@@ -10,8 +10,6 @@ public sealed class AnnotationSessionViewModel
 
     public AnnotationInteractionMode Mode { get; set; } = AnnotationInteractionMode.Editing;
 
-    public int ExportScalePercent { get; set; } = 100;
-
     public CaptureViewModel? CurrentCapture { get; set; }
 
     public AnnotationViewModel? SelectedAnnotation { get; set; }

@@ -18,7 +18,7 @@ public sealed class CaptureSourceCleanerTests
         var capture = CreateCapture(screenshotPath, thumbnailPath);
         capture.PrivacyMasks.Add(new PrivacyMaskViewModel("mask", new RectInt(10, 10, 20, 20)));
 
-        CaptureSourceCleaner.DeleteRawSources([capture], exportScalePercent: 100);
+        CaptureSourceCleaner.DeleteRawSources([capture]);
 
         Assert.False(File.Exists(screenshotPath));
         Assert.False(File.Exists(thumbnailPath));
@@ -35,7 +35,7 @@ public sealed class CaptureSourceCleanerTests
         File.WriteAllText(thumbnailPath, "raw");
         var capture = CreateCapture(screenshotPath, thumbnailPath);
 
-        CaptureSourceCleaner.DeleteRawSources([capture], exportScalePercent: 100);
+        CaptureSourceCleaner.DeleteRawSources([capture]);
 
         Assert.True(File.Exists(screenshotPath));
         Assert.True(File.Exists(thumbnailPath));

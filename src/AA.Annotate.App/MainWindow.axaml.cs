@@ -31,6 +31,10 @@ public partial class MainWindow : Window
     private readonly IScreenCaptureService _captureService;
     private readonly IWindowIntegration _windowIntegration;
     private readonly PortableImageCropWriter _cropWriter = new();
+    private readonly CapturePreviewWriter _previewWriter = new();
+    private readonly IExportDestinationPicker _exportDestinationPicker = new ExportDestinationPicker();
+    private readonly LaunchCaller _launchCaller;
+    private readonly int _defaultScalePercent;
     private readonly HashSet<Control> _hoveredChromePanels = [];
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
@@ -57,19 +61,21 @@ public partial class MainWindow : Window
     private DispatcherTimer? _captureHeartbeatTimer;
     private IDisposable? _nativeHitTestHook;
     private CancellationTokenSource? _captureCancellation;
+    private TaskCompletionSource<bool>? _completionConfirmation;
+    private bool _isFinishing;
 
     public MainWindow()
-        : this(null, null, null, null, null)
+        : this(null, null, null, null, null, CaptureScale.DefaultPercent, LaunchCaller.Human)
     {
     }
 
     public MainWindow(string? sessionFolder)
-        : this(sessionFolder, null, null, null, null)
+        : this(sessionFolder, null, null, null, null, CaptureScale.DefaultPercent, LaunchCaller.Human)
     {
     }
 
     public MainWindow(string? sessionFolder, TimeSpan? idleTimeout)
-        : this(sessionFolder, null, null, null, idleTimeout)
+        : this(sessionFolder, null, null, null, idleTimeout, CaptureScale.DefaultPercent, LaunchCaller.Human)
     {
     }
 
@@ -79,6 +85,18 @@ public partial class MainWindow : Window
         string? sessionRoot,
         string? exportRoot,
         TimeSpan? idleTimeout)
+        : this(sessionFolder, exportFolder, sessionRoot, exportRoot, idleTimeout, CaptureScale.DefaultPercent, LaunchCaller.Human)
+    {
+    }
+
+    public MainWindow(
+        string? sessionFolder,
+        string? exportFolder,
+        string? sessionRoot,
+        string? exportRoot,
+        TimeSpan? idleTimeout,
+        int defaultScalePercent,
+        LaunchCaller launchCaller)
     {
         var platformServices = AppPlatformServices.Create();
         _displayCatalog = new AvaloniaDisplayCatalog(() => Screens);
@@ -89,8 +107,11 @@ public partial class MainWindow : Window
         _providedSessionRoot = sessionRoot;
         _providedExportRoot = exportRoot;
         _idleTimeout = idleTimeout;
+        _defaultScalePercent = CaptureScale.Clamp(defaultScalePercent);
+        _launchCaller = launchCaller;
         InitializeComponent();
         ConfigureChromePanelHover(CommandBar);
+        ConfigureChromePanelHover(CaptureScaleSelector);
         ConfigureChromePanelHover(DisplayDropdown);
         ConfigureChromePanelHover(CaptureDropdown);
         ConfigureChromePanelHover(AboutPanel);
@@ -106,7 +127,7 @@ public partial class MainWindow : Window
         CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
         CommandBar.PrivacyMaskRequested += async (_, _) => await ActivatePrivacyMaskAsync();
         CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
-        CommandBar.ExportScaleChanged += (_, percent) => SetExportScalePercent(percent);
+        CaptureScaleSelector.ScaleChanged += (_, percent) => SetCurrentCaptureScalePercent(percent);
         CommandBar.FinishRequested += async (_, _) => await FinishAsync();
         CommandBar.AboutRequested += (_, _) => ToggleAboutPanel();
         CommandBar.CancelRequested += async (_, _) => await CancelAsync();
@@ -130,9 +151,14 @@ public partial class MainWindow : Window
         IdleWarningContinueButton.Click += (_, _) => ContinueAfterIdleWarning();
         IdleWarningDiscardButton.Click += async (_, _) => await CancelAsync();
         IdleWarningSendButton.Click += async (_, _) => await FinishAsync();
+        CompletionConfirmationCancelButton.Click += (_, _) => CompleteFinishConfirmation(confirmed: false);
+        CompletionConfirmationConfirmButton.Click += (_, _) => CompleteFinishConfirmation(confirmed: true);
+        CompletionConfirmationOverlay.KeyDown += OnCompletionConfirmationKeyDown;
         AboutCloseButton.Click += (_, _) => CloseAboutPanel();
         CaptureStatusDismissButton.Click += (_, _) => CloseCaptureStatusFeedback();
         AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
+        CommandBar.SetAgentCompletion(_launchCaller == LaunchCaller.Agent);
+        IdleWarningSendButton.Content = _launchCaller == LaunchCaller.Agent ? "Send" : "Export";
         AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -197,7 +223,7 @@ public partial class MainWindow : Window
             yield break;
         }
 
-        foreach (var control in new Control[] { CommandBar, CommentEditor })
+        foreach (var control in new Control[] { CommandBar, CaptureScaleSelector, CommentEditor })
         {
             if (TryGetVisibleControlWindowRect(control) is { } rect)
             {
@@ -358,7 +384,7 @@ public partial class MainWindow : Window
 
     private void OnUserActivity(object? sender, RoutedEventArgs e)
     {
-        if (!IdleWarningOverlay.IsVisible)
+        if (!IdleWarningOverlay.IsVisible && !CompletionConfirmationOverlay.IsVisible)
         {
             ResetIdleTimer();
         }
@@ -647,7 +673,9 @@ public partial class MainWindow : Window
                 thumbnailPath,
                 captured.PixelSize,
                 captured.Display.Bounds,
-                isSelected: true);
+                isSelected: true,
+                exportScalePercent: _defaultScalePercent);
+            ApplyCaptureScale(capture, _defaultScalePercent);
             CaptureCropInheritancePolicy.TryCopyCrop(previousCapture, capture);
 
             foreach (var existing in _session.Captures)
@@ -933,10 +961,43 @@ public partial class MainWindow : Window
         UpdateChrome();
     }
 
-    private void SetExportScalePercent(int percent)
+    private void SetCurrentCaptureScalePercent(int percent)
     {
-        _session.ExportScalePercent = ExportScalePercentParser.Clamp(percent);
-        CommandBar.SetExportScalePercent(_session.ExportScalePercent);
+        if (_session.CurrentCapture is { } capture)
+        {
+            ApplyCaptureScale(capture, percent);
+        }
+    }
+
+    private void ApplyCaptureScale(CaptureViewModel capture, int percent)
+    {
+        if (_paths is null)
+        {
+            return;
+        }
+
+        var resolvedPercent = ExportScalePercentParser.Clamp(percent);
+        var previousPreviewPath = capture.PreviewPath;
+        var previewPath = Path.Combine(_paths.WorkingCapturesFolder, $"{capture.Number:00}-preview.png");
+        var preview = _previewWriter.Write(capture.ScreenshotPath, previewPath, resolvedPercent);
+        capture.SetScalePreview(
+            resolvedPercent,
+            resolvedPercent == CaptureScale.MaximumPercent ? null : preview.ImagePath,
+            preview.PixelSize);
+
+        if (_session.CurrentCapture == capture)
+        {
+            ScreenshotSurface.SetImage(capture.DisplayImagePath);
+            BlurredCropMask.SetImage(capture.DisplayImagePath);
+            CaptureScaleSelector.SetCapture(capture.Number, capture.ExportScalePercent, capture.PreviewPixelSize);
+            RefreshAnnotations();
+            RefreshCropMaskVisibility();
+        }
+
+        if (resolvedPercent == CaptureScale.MaximumPercent && previousPreviewPath is not null)
+        {
+            TryDeleteFile(previousPreviewPath);
+        }
     }
 
     private DisplayDescriptor GetDisplayContainingWindow()
@@ -955,7 +1016,7 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible);
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || CompletionConfirmationOverlay.IsVisible);
     }
 
     private bool IsFullSurfaceInputActive()
@@ -965,7 +1026,7 @@ public partial class MainWindow : Window
             _isDrawing,
             _session.Mode,
             CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible);
+            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || CompletionConfirmationOverlay.IsVisible);
     }
 
     private bool ShouldRenderCaptureSurface()
@@ -1026,8 +1087,8 @@ public partial class MainWindow : Window
 
         _session.CurrentCapture = capture;
         _session.SelectedAnnotation = null;
-        ScreenshotSurface.SetImage(capture.ScreenshotPath);
-        BlurredCropMask.SetImage(capture.ScreenshotPath);
+        ScreenshotSurface.SetImage(capture.DisplayImagePath);
+        BlurredCropMask.SetImage(capture.DisplayImagePath);
         RememberCurrentViewportIfEditing(capture);
         ProjectStoredCropToViewport(capture);
         CropOverlay.SetCrop(capture.CropRect);
@@ -1103,6 +1164,7 @@ public partial class MainWindow : Window
         CommandBar.SetAnnotationActive(false);
         CommandBar.SetPrivacyMaskActive(false);
         ScreenshotSurface.SetImage(null);
+        CaptureScaleSelector.ClearCapture();
         BlurredCropMask.SetImage(null);
         BlurredCropMask.IsVisible = false;
         CommentEditor.IsVisible = false;
@@ -1117,6 +1179,10 @@ public partial class MainWindow : Window
     {
         TryDeleteFile(capture.ScreenshotPath);
         TryDeleteFile(capture.ThumbnailPath);
+        if (capture.PreviewPath is { } previewPath)
+        {
+            TryDeleteFile(previewPath);
+        }
     }
 
     private static void TryDeleteFile(string path)
@@ -1694,25 +1760,135 @@ public partial class MainWindow : Window
 
     private async Task FinishAsync()
     {
-        if (_paths is null)
+        if (_paths is null || _isFinishing)
         {
             return;
         }
 
-        StoreCurrentCrop();
-        StoreActiveComment();
-        StopIdleTimers();
-        var session = BuildExportSession();
-        await _exporter.ExportAsync(_paths, session);
-        DeleteRawCaptureSourceFiles();
-        await _store.MarkCompletedAsync(_paths, _paths.ReviewMarkdownPath, _paths.AnnotationsJsonPath);
-        _hasTerminalStatus = true;
-        Close();
+        _isFinishing = true;
+        try
+        {
+            if (!await ConfirmFinishAsync())
+            {
+                return;
+            }
+
+            StoreCurrentCrop();
+            StoreActiveComment();
+            var completionPaths = await ResolveCompletionPathsAsync();
+            if (completionPaths is null)
+            {
+                ResetIdleTimer();
+                ApplyCurrentWindowMode();
+                return;
+            }
+
+            _paths = completionPaths;
+            StopIdleTimers();
+            var session = BuildExportSession();
+            await _exporter.ExportAsync(_paths, session);
+            DeleteRawCaptureSourceFiles();
+            await _store.MarkCompletedAsync(_paths, _paths.ReviewMarkdownPath, _paths.AnnotationsJsonPath);
+            _hasTerminalStatus = true;
+            Close();
+        }
+        finally
+        {
+            if (!_hasTerminalStatus)
+            {
+                _isFinishing = false;
+            }
+        }
+    }
+
+    private async Task<bool> ConfirmFinishAsync()
+    {
+        var wasIdleWarningVisible = IdleWarningOverlay.IsVisible;
+        _idleTimer?.Stop();
+        _idleWarningTimer?.Stop();
+        CompletionConfirmationMessageText.Text = _launchCaller == LaunchCaller.Agent
+            ? "This will send the current captures and annotations to the agent. You cannot add more annotations after finishing."
+            : "This will export the current captures and annotations. You cannot add more annotations after finishing.";
+        CompletionConfirmationConfirmButton.Content = _launchCaller == LaunchCaller.Agent ? "Send" : "Export";
+        CompletionConfirmationOverlay.IsVisible = true;
+        CompletionConfirmationOverlay.Focus();
+        if (_activeDisplay is { } display)
+        {
+            SetActiveDisplay(display, fullscreen: true);
+        }
+
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _completionConfirmation = completion;
+        var confirmed = await completion.Task;
+        _completionConfirmation = null;
+        CompletionConfirmationOverlay.IsVisible = false;
+        if (confirmed)
+        {
+            IdleWarningOverlay.IsVisible = false;
+            _idleWarningTimer?.Stop();
+            return true;
+        }
+
+        if (wasIdleWarningVisible)
+        {
+            ContinueAfterIdleWarning();
+        }
+        else
+        {
+            ResetIdleTimer();
+            ApplyCurrentWindowMode();
+        }
+
+        return false;
+    }
+
+    private void CompleteFinishConfirmation(bool confirmed)
+    {
+        _completionConfirmation?.TrySetResult(confirmed);
+    }
+
+    private void OnCompletionConfirmationKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            CompleteFinishConfirmation(confirmed: false);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter)
+        {
+            CompleteFinishConfirmation(confirmed: true);
+            e.Handled = true;
+        }
+    }
+
+    private async Task<SessionPaths?> ResolveCompletionPathsAsync()
+    {
+        if (_paths is null || !CompletionBehavior.RequiresExportDestination(_launchCaller))
+        {
+            return _paths;
+        }
+
+        var exportFolder = await _exportDestinationPicker.PickAsync(this);
+        if (string.IsNullOrWhiteSpace(exportFolder))
+        {
+            return null;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(exportFolder);
+            Directory.CreateDirectory(Path.Combine(exportFolder, "captures"));
+            return SessionPaths.FromFolder(_paths.SessionFolder, exportFolder);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private void DeleteRawCaptureSourceFiles()
     {
-        CaptureSourceCleaner.DeleteRawSources(_session.Captures, _session.ExportScalePercent);
+        CaptureSourceCleaner.DeleteRawSources(_session.Captures);
     }
 
     private async Task CancelAsync()
@@ -1800,7 +1976,7 @@ public partial class MainWindow : Window
             PrivacyMasks: capture.PrivacyMasks
                 .Select(mask => new PrivacyMask(mask.MaskId, ToPixelRect(mask.BoxRect, capture)))
                 .ToList(),
-            ExportScalePercent: _session.ExportScalePercent);
+            ExportScalePercent: capture.ExportScalePercent);
     }
 
     private RectInt ToPixelRect(RectInt viewRect, CaptureViewModel capture)
@@ -1838,7 +2014,14 @@ public partial class MainWindow : Window
         RefreshCaptureSurfaceVisibility();
         var canUseCaptureControls = CanUseCaptureControls();
         CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
-        CommandBar.SetExportScalePercent(_session.ExportScalePercent);
+        if (_session.CurrentCapture is { } capture)
+        {
+            CaptureScaleSelector.SetCapture(capture.Number, capture.ExportScalePercent, capture.PreviewPixelSize);
+        }
+        else
+        {
+            CaptureScaleSelector.ClearCapture();
+        }
         CommandBar.SetCaptureControlsEnabled(canUseCaptureControls);
         CaptureDropdown.SetCaptures(_session.Captures);
         CaptureDropdown.SetCanCreateCapture(canUseCaptureControls);

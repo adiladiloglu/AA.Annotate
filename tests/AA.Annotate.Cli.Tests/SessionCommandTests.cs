@@ -110,6 +110,21 @@ public sealed class SessionCommandTests
         Assert.Equal(TimeSpan.FromMinutes(1), launcher.IdleTimeout);
     }
 
+    [Fact]
+    public async Task RunPassesDefaultScaleToAppLauncher()
+    {
+        var output = new StringWriter();
+        var store = new SessionStore(() => DateTimeOffset.Parse("2026-06-29T15:30:00Z"));
+        var launcher = new RecordingLauncher();
+        var command = new SessionCommand(output, store, launcher);
+        var root = Path.Combine(Path.GetTempPath(), "AA.Annotate.Cli.Tests", Guid.NewGuid().ToString("N"));
+
+        var exitCode = await command.RunAsync(["session", "--session-root", root, "--default-scale", "50"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(50, launcher.DefaultScalePercent);
+    }
+
     private sealed class ThrowingLauncher(string message) : AppLauncher
     {
         public override string ResolveExecutablePath()
@@ -117,7 +132,7 @@ public sealed class SessionCommandTests
             return @"C:\Missing\AA.Annotate.App.exe";
         }
 
-        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
+        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null, int defaultScalePercent = 100)
         {
             throw new FileNotFoundException(message);
         }
@@ -128,17 +143,19 @@ public sealed class SessionCommandTests
         public TimeSpan? IdleTimeout { get; private set; }
         public string? SessionFolder { get; private set; }
         public string? ExportFolder { get; private set; }
+        public int DefaultScalePercent { get; private set; }
 
         public override string ResolveExecutablePath()
         {
             return @"C:\Tools\AA.Annotate.App.exe";
         }
 
-        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
+        public override Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null, int defaultScalePercent = 100)
         {
             IdleTimeout = idleTimeout;
             SessionFolder = sessionFolder;
             ExportFolder = exportFolder;
+            DefaultScalePercent = defaultScalePercent;
             return Process.GetCurrentProcess();
         }
     }

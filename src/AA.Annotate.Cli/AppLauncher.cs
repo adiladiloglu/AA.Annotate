@@ -12,16 +12,16 @@ internal enum AppHostPlatform
 
 public class AppLauncher
 {
-    public virtual Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null)
+    public virtual Process Launch(string sessionFolder, string exportFolder, TimeSpan? idleTimeout = null, int defaultScalePercent = 100)
     {
         var executable = ResolveExecutablePath();
-        var startInfo = CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout);
+        var startInfo = CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout, defaultScalePercent);
         return Process.Start(startInfo) ?? throw new InvalidOperationException($"Failed to start {executable}.");
     }
 
     internal static ProcessStartInfo CreateStartInfo(string executable, string sessionFolder, string exportFolder, TimeSpan? idleTimeout)
     {
-        return CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout, GetCurrentPlatform());
+        return CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout, 100, GetCurrentPlatform());
     }
 
     internal static ProcessStartInfo CreateStartInfo(
@@ -29,6 +29,27 @@ public class AppLauncher
         string sessionFolder,
         string exportFolder,
         TimeSpan? idleTimeout,
+        int defaultScalePercent)
+    {
+        return CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout, defaultScalePercent, GetCurrentPlatform());
+    }
+
+    internal static ProcessStartInfo CreateStartInfo(
+        string executable,
+        string sessionFolder,
+        string exportFolder,
+        TimeSpan? idleTimeout,
+        AppHostPlatform platform)
+    {
+        return CreateStartInfo(executable, sessionFolder, exportFolder, idleTimeout, 100, platform);
+    }
+
+    internal static ProcessStartInfo CreateStartInfo(
+        string executable,
+        string sessionFolder,
+        string exportFolder,
+        TimeSpan? idleTimeout,
+        int defaultScalePercent,
         AppHostPlatform platform)
     {
         var startInfo = new ProcessStartInfo
@@ -42,6 +63,10 @@ public class AppLauncher
         startInfo.ArgumentList.Add(sessionFolder);
         startInfo.ArgumentList.Add("--export");
         startInfo.ArgumentList.Add(exportFolder);
+        startInfo.ArgumentList.Add("--caller");
+        startInfo.ArgumentList.Add("agent");
+        startInfo.ArgumentList.Add("--default-scale");
+        startInfo.ArgumentList.Add(defaultScalePercent.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (idleTimeout is { } timeout)
         {
             startInfo.ArgumentList.Add("--idle-timeout-seconds");

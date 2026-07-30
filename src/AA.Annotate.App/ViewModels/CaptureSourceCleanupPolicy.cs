@@ -2,10 +2,10 @@ namespace AA.Annotate.App.ViewModels;
 
 internal static class CaptureSourceCleanupPolicy
 {
-    public static bool ShouldDeleteRawSource(CaptureViewModel capture, int exportScalePercent)
+    public static bool ShouldDeleteRawSource(CaptureViewModel capture)
     {
         return CaptureCropProjector.IsCropped(capture) ||
             capture.PrivacyMasks.Count > 0 ||
-            ExportScalePercentParser.Clamp(exportScalePercent) < 100;
+            capture.ExportScalePercent < 100;
     }
 }

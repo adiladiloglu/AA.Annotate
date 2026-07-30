@@ -11,7 +11,7 @@ public sealed class SessionCommand
     private static readonly TimeSpan IdleWarningDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan WaiterSafetyBuffer = TimeSpan.FromSeconds(15);
     private const string HelpText = """
-        Usage: aa-annotate session [--wait] [--session-root <folder>] [--output <folder>] [--timeout-seconds <seconds>]
+        Usage: aa-annotate session [--wait] [--session-root <folder>] [--output <folder>] [--timeout-seconds <seconds>] [--default-scale <percent>]
 
         Other commands:
           aa-annotate --help
@@ -21,6 +21,7 @@ public sealed class SessionCommand
           --session-root <folder>        Store private working session folders under this root folder.
           --output <folder>              Store final exported review files under this root folder.
           --timeout-seconds <seconds>    Inactivity timeout passed to the desktop app. Default: 60.
+          --default-scale <percent>      Default output scale for new captures, from 20 to 100. Default: 100.
           -h, --help, /?                 Show this help.
         """;
     private readonly TextWriter _output;
@@ -54,6 +55,7 @@ public sealed class SessionCommand
         var sessionRoot = ReadOption(args, "--session-root");
         var outputRoot = ReadOption(args, "--output");
         var timeout = ReadTimeout(args);
+        var defaultScalePercent = CaptureScale.ParseOrDefault(ReadOption(args, "--default-scale"));
         var paths = await _store.CreateSessionAsync(sessionRoot, outputRoot, cancellationToken);
 
         Process launchedProcess;
@@ -61,7 +63,7 @@ public sealed class SessionCommand
         {
             var appExecutable = _launcher.ResolveExecutablePath();
             await _output.WriteLineAsync($"APP_EXE={appExecutable}");
-            launchedProcess = _launcher.Launch(paths.SessionFolder, paths.ExportFolder, timeout);
+            launchedProcess = _launcher.Launch(paths.SessionFolder, paths.ExportFolder, timeout, defaultScalePercent);
             await _output.WriteLineAsync($"APP_PROCESS_ID={launchedProcess.Id}");
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or FileNotFoundException)

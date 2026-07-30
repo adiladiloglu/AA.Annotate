@@ -1,3 +1,5 @@
+using AA.Annotate.App.Services;
+using AA.Annotate.Core.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -29,7 +31,9 @@ public partial class App : Application
                 ReadExportFolder(args),
                 ReadSessionRoot(args),
                 ReadExportRoot(args),
-                ReadIdleTimeout(args));
+                ReadIdleTimeout(args),
+                ReadDefaultScale(args),
+                ReadCaller(args));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -261,6 +265,17 @@ public partial class App : Application
         return ReadOption(args, "--export-root");
     }
 
+    internal static int ReadDefaultScale(IReadOnlyList<string> args)
+    {
+        return CaptureScale.ParseOrDefault(ReadOption(args, "--default-scale"));
+    }
+
+    internal static LaunchCaller ReadCaller(IReadOnlyList<string> args)
+    {
+        return string.Equals(ReadOption(args, "--caller"), "agent", StringComparison.OrdinalIgnoreCase)
+            ? LaunchCaller.Agent
+            : LaunchCaller.Human;
+    }
     internal static TimeSpan? ReadIdleTimeout(IReadOnlyList<string> args)
     {
         var value = ReadOption(args, "--idle-timeout-seconds");

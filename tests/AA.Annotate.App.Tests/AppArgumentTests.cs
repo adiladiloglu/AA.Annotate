@@ -1,4 +1,5 @@
 using AA.Annotate.App;
+using AA.Annotate.App.Services;
 
 namespace AA.Annotate.App.Tests;
 
@@ -58,4 +59,18 @@ public sealed class AppArgumentTests
         Assert.Contains("--idle-timeout-seconds <seconds>", AppCommandLine.HelpText, StringComparison.Ordinal);
         Assert.Contains("Default: 60", AppCommandLine.HelpText, StringComparison.Ordinal);
     }
+    [Fact]
+    public void ReadDefaultScaleReturnsCaptureDefault()
+    {
+        Assert.Equal(50, App.ReadDefaultScale(["--default-scale", "50"]));
+        Assert.Equal(100, App.ReadDefaultScale([]));
+    }
+
+    [Fact]
+    public void ReadCallerDefaultsToHumanAndRecognizesAgent()
+    {
+        Assert.Equal(LaunchCaller.Human, App.ReadCaller([]));
+        Assert.Equal(LaunchCaller.Agent, App.ReadCaller(["--caller", "agent"]));
+    }
+
 }

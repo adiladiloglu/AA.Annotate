@@ -11,7 +11,7 @@ public sealed class CaptureSourceCleanupPolicyTests
     {
         var capture = CreateCapture();
 
-        Assert.False(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture, exportScalePercent: 100));
+        Assert.False(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture));
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public sealed class CaptureSourceCleanupPolicyTests
         var capture = CreateCapture();
         capture.CropPixelRect = new RectInt(10, 10, 80, 80);
 
-        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture, exportScalePercent: 100));
+        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture));
     }
 
     [Fact]
@@ -29,18 +29,18 @@ public sealed class CaptureSourceCleanupPolicyTests
         var capture = CreateCapture();
         capture.PrivacyMasks.Add(new PrivacyMaskViewModel("mask", new RectInt(10, 10, 20, 20)));
 
-        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture, exportScalePercent: 100));
+        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture));
     }
 
     [Fact]
     public void ShouldDeleteRawSourceReturnsTrueForDownsizedCapture()
     {
-        var capture = CreateCapture();
+        var capture = CreateCapture(exportScalePercent: 75);
 
-        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture, exportScalePercent: 75));
+        Assert.True(CaptureSourceCleanupPolicy.ShouldDeleteRawSource(capture));
     }
 
-    private static CaptureViewModel CreateCapture()
+    private static CaptureViewModel CreateCapture(int exportScalePercent = 100)
     {
         return new CaptureViewModel(
             "capture",
@@ -50,6 +50,7 @@ public sealed class CaptureSourceCleanupPolicyTests
             "thumb.png",
             new SizeInt(100, 100),
             new RectInt(0, 0, 100, 100),
-            isSelected: true);
+            isSelected: true,
+            exportScalePercent: exportScalePercent);
     }
 }

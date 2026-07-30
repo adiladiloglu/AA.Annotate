@@ -1,9 +1,7 @@
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia;
-using AA.Annotate.App.ViewModels;
 
 namespace AA.Annotate.App.Views;
 
@@ -13,8 +11,6 @@ public partial class FloatingCommandBar : UserControl
     private readonly IBrush? _solidBrush;
     private DispatcherTimer? _attentionTimer;
     private bool _isPanelHoverActive;
-    private bool _isUpdatingScale;
-    private int _currentScalePercent = 100;
 
     public event EventHandler? MoveSelectorRequested;
 
@@ -27,8 +23,6 @@ public partial class FloatingCommandBar : UserControl
     public event EventHandler? PrivacyMaskRequested;
 
     public event EventHandler? AnnotationRequested;
-
-    public event EventHandler<int>? ExportScaleChanged;
 
     public event EventHandler? FinishRequested;
 
@@ -49,19 +43,6 @@ public partial class FloatingCommandBar : UserControl
         CropButton.Click += (_, _) => CropRequested?.Invoke(this, EventArgs.Empty);
         PrivacyMaskButton.Click += (_, _) => PrivacyMaskRequested?.Invoke(this, EventArgs.Empty);
         AnnotationButton.Click += (_, _) => AnnotationRequested?.Invoke(this, EventArgs.Empty);
-        ScaleTextBox.LostFocus += (_, _) => CommitScaleText();
-        ScaleTextBox.KeyDown += OnScaleTextKeyDown;
-        ScalePresetButton.PointerPressed += (_, e) =>
-        {
-            ScalePresetPopup.IsOpen = !ScalePresetPopup.IsOpen;
-            e.Handled = true;
-        };
-        ScalePreset100Button.Click += (_, _) => SelectScalePreset(100);
-        ScalePreset75Button.Click += (_, _) => SelectScalePreset(75);
-        ScalePreset66Button.Click += (_, _) => SelectScalePreset(66);
-        ScalePreset50Button.Click += (_, _) => SelectScalePreset(50);
-        ScalePreset33Button.Click += (_, _) => SelectScalePreset(33);
-        ScalePreset25Button.Click += (_, _) => SelectScalePreset(25);
         FinishButton.Click += (_, _) => FinishRequested?.Invoke(this, EventArgs.Empty);
         AboutButton.Click += (_, _) => AboutRequested?.Invoke(this, EventArgs.Empty);
         CancelButton.Click += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
@@ -84,44 +65,10 @@ public partial class FloatingCommandBar : UserControl
         PrivacyMaskButton.Classes.Set("iconButton", !isActive);
     }
 
-    public void SetExportScalePercent(int percent)
+    public void SetAgentCompletion(bool isAgentLaunch)
     {
-        _currentScalePercent = ExportScalePercentParser.Clamp(percent);
-        _isUpdatingScale = true;
-        ScaleTextBox.Text = $"{_currentScalePercent}%";
-        _isUpdatingScale = false;
+        ToolTip.SetTip(FinishButton, isAgentLaunch ? "Complete and send to agent" : "Export captures");
     }
-
-    private void OnScaleTextKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter)
-        {
-            return;
-        }
-
-        CommitScaleText();
-        e.Handled = true;
-    }
-
-    private void CommitScaleText()
-    {
-        if (_isUpdatingScale)
-        {
-            return;
-        }
-
-        var percent = ExportScalePercentParser.ParseOrDefault(ScaleTextBox.Text, _currentScalePercent);
-        SetExportScalePercent(percent);
-        ExportScaleChanged?.Invoke(this, percent);
-    }
-
-    private void SelectScalePreset(int percent)
-    {
-        SetExportScalePercent(percent);
-        ScalePresetPopup.IsOpen = false;
-        ExportScaleChanged?.Invoke(this, percent);
-    }
-
     public void SetCaptureControlsEnabled(bool isEnabled)
     {
         CaptureButton.IsEnabled = isEnabled;

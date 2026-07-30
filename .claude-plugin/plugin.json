@@ -1,7 +1,7 @@
 {
   "name": "aa-annotate",
-  "description": "Windows annotation overlay for collecting masked screenshot comments during agent sessions",
-  "version": "0.2.0",
+  "description": "Cross-platform annotation overlay for collecting masked screenshot comments during agent sessions",
+  "version": "0.4.0",
   "author": {
     "name": "Adil Adiloglu"
   },
@@ -14,6 +14,6 @@
     "agent-handoff",
     "desktop",
     "screenshot",
-    "windows"
+    "cross-platform"
   ]
 }
