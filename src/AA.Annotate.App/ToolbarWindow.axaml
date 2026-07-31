@@ -1,0 +1,137 @@
+<Window
+    x:Class="AA.Annotate.App.ToolbarWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:primitives="using:Avalonia.Controls.Primitives"
+    xmlns:views="clr-namespace:AA.Annotate.App.Views"
+    Title="AA Annotate Toolbar"
+    Background="Transparent"
+    CanResize="False"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaChromeHints="NoChrome"
+    ExtendClientAreaTitleBarHeightHint="-1"
+    SizeToContent="WidthAndHeight"
+    SystemDecorations="None"
+    ShowInTaskbar="False"
+    ShowActivated="False"
+    TransparencyLevelHint="Transparent"
+    Topmost="True">
+  <Grid Background="Transparent">
+    <StackPanel Spacing="8">
+      <views:FloatingCommandBar Name="CommandBarElement" />
+      <views:CaptureScaleSelector Name="CaptureScaleSelectorElement"
+                                  HorizontalAlignment="Left" />
+    </StackPanel>
+
+    <primitives:Popup Name="DisplayDropdownPopup"
+                      PlacementTarget="{Binding #CommandBarElement}"
+                      Placement="BottomEdgeAlignedLeft"
+                      PlacementConstraintAdjustment="FlipY,SlideX"
+                      VerticalOffset="6">
+      <views:DisplayDropdown Name="DisplayDropdownElement" />
+    </primitives:Popup>
+
+    <primitives:Popup Name="CaptureDropdownPopup"
+                      PlacementTarget="{Binding #CommandBarElement}"
+                      Placement="BottomEdgeAlignedLeft"
+                      PlacementConstraintAdjustment="FlipY,SlideX"
+                      HorizontalOffset="104"
+                      VerticalOffset="6">
+      <views:CaptureDropdown Name="CaptureDropdownElement" />
+    </primitives:Popup>
+
+    <primitives:Popup Name="CaptureStatusPopup"
+                      PlacementTarget="{Binding #CommandBarElement}"
+                      Placement="BottomEdgeAlignedLeft"
+                      PlacementConstraintAdjustment="FlipY,SlideX"
+                      VerticalOffset="6">
+      <Border Name="CaptureStatusPanelElement"
+              Width="360"
+              Padding="14"
+              CornerRadius="{StaticResource RadiusLarge}"
+              Background="{StaticResource PanelSurfaceBrush}"
+              BorderBrush="{StaticResource OverlayBorderBrush}"
+              BorderThickness="1">
+        <Grid RowDefinitions="Auto,Auto"
+              ColumnDefinitions="*,Auto"
+              RowSpacing="6">
+          <TextBlock Name="CaptureStatusTitleTextElement"
+                     Foreground="White"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center" />
+          <Button Name="CaptureStatusDismissButtonElement"
+                  Grid.Column="1"
+                  Classes="iconButton"
+                  Width="26"
+                  Height="26"
+                  ToolTip.Tip="Dismiss">
+            <PathIcon Width="13"
+                      Height="13"
+                      Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
+          </Button>
+          <TextBlock Name="CaptureStatusMessageTextElement"
+                     Grid.Row="1"
+                     Grid.ColumnSpan="2"
+                     Foreground="#EAF7FBFF"
+                     FontSize="12"
+                     TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+    </primitives:Popup>
+
+    <primitives:Popup Name="AboutPanelPopup"
+                      PlacementTarget="{Binding #CommandBarElement}"
+                      Placement="BottomEdgeAlignedLeft"
+                      PlacementConstraintAdjustment="FlipY,SlideX"
+                      HorizontalOffset="186"
+                      VerticalOffset="6">
+      <Border Name="AboutPanelElement"
+              Width="236"
+              Padding="12"
+              CornerRadius="{StaticResource RadiusLarge}"
+              Background="{StaticResource PanelSurfaceBrush}"
+              BorderBrush="{StaticResource OverlayBorderBrush}"
+              BorderThickness="1">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+              ColumnDefinitions="*,Auto"
+              RowSpacing="7">
+          <TextBlock Text="AA Annotate"
+                     Foreground="White"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center" />
+          <Button Name="AboutCloseButtonElement"
+                  Grid.Column="1"
+                  Classes="iconButton"
+                  Width="26"
+                  Height="26"
+                  ToolTip.Tip="Close">
+            <PathIcon Width="13"
+                      Height="13"
+                      Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
+          </Button>
+          <TextBlock Name="AboutVersionTextElement"
+                     Grid.Row="1"
+                     Grid.ColumnSpan="2"
+                     Foreground="#EAF7FBFF"
+                     FontSize="11" />
+          <TextBlock Grid.Row="2"
+                     Grid.ColumnSpan="2"
+                     Foreground="#C8E2EBF6"
+                     FontSize="11"
+                     Text="License: Apache-2.0" />
+          <TextBlock Name="AboutGitHubLinkTextElement"
+                     Grid.Row="3"
+                     Grid.ColumnSpan="2"
+                     Cursor="Hand"
+                     Foreground="#EAF7FBFF"
+                     FontSize="11"
+                     TextDecorations="Underline"
+                     ToolTip.Tip="Open GitHub repository"
+                     Text="GitHub: adiladiloglu/AA.Annotate" />
+        </Grid>
+      </Border>
+    </primitives:Popup>
+  </Grid>
+</Window>

@@ -9,12 +9,13 @@ public sealed class WindowsWindowIntegration : IWindowIntegration
         WindowsNativeWindowChrome.SuppressBorder(windowHandle);
     }
 
-    public IDisposable EnableTransparentHitTest(
-        nint windowHandle,
-        Func<int, int, bool> shouldHandleScreenPoint)
+    public void BringToFrontWithoutActivation(nint windowHandle)
     {
-        return WindowsNativeWindowChrome.EnableTransparentHitTest(
-            windowHandle,
-            shouldHandleScreenPoint);
+        WindowsNativeWindowChrome.BringToFrontWithoutActivation(windowHandle);
+    }
+
+    public void FlushCompositor()
+    {
+        WindowsNativeWindowChrome.FlushCompositor();
     }
 }

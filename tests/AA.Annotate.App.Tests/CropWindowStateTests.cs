@@ -6,53 +6,51 @@ namespace AA.Annotate.App.Tests;
 public sealed class CropWindowStateTests
 {
     [Fact]
-    public void StoredCropDoesNotKeepFullscreenPreviewAfterCropOverlayCloses()
+    public void StoredCropDoesNotKeepOverlayVisibleAfterCropOverlayCloses()
     {
-        var useFullscreen = InteractionSurfacePolicy.ShouldUseFullscreen(
+        var presentation = OverlayPresentationPolicy.Create(
             isCapturing: false,
             isDrawing: false,
             AnnotationInteractionMode.Idle,
             cropOverlayVisible: false,
-            commentEditorVisible: false);
+            commentEditorVisible: false,
+            idleWarningVisible: false,
+            sessionConfirmationVisible: false,
+            isTerminal: false);
 
-        Assert.False(useFullscreen);
-    }
-
-    [Fact]
-    public void StoredCropDoesNotConsumeFullSurfaceInputWhenNoEditToolIsActive()
-    {
-        var handleFullSurfaceInput = InteractionSurfacePolicy.ShouldHandleFullSurfaceInput(
-            isCapturing: false,
-            isDrawing: false,
-            AnnotationInteractionMode.Idle,
-            cropOverlayVisible: false,
-            commentEditorVisible: false);
-
-        Assert.False(handleFullSurfaceInput);
+        Assert.False(presentation.OverlayVisible);
     }
 
     [Fact]
     public void IdleChromeDoesNotRenderCapturedSurface()
     {
-        var renderSurface = InteractionSurfacePolicy.ShouldRenderCaptureSurface(
+        var presentation = OverlayPresentationPolicy.Create(
+            isCapturing: false,
             isDrawing: false,
             AnnotationInteractionMode.CaptureDropdownOpen,
             cropOverlayVisible: false,
-            commentEditorVisible: false);
+            commentEditorVisible: false,
+            idleWarningVisible: false,
+            sessionConfirmationVisible: false,
+            isTerminal: false);
 
-        Assert.False(renderSurface);
+        Assert.False(presentation.CaptureSurfaceVisible);
     }
 
     [Fact]
     public void AnnotationModeRendersCapturedSurface()
     {
-        var renderSurface = InteractionSurfacePolicy.ShouldRenderCaptureSurface(
+        var presentation = OverlayPresentationPolicy.Create(
+            isCapturing: false,
             isDrawing: false,
             AnnotationInteractionMode.DrawingAnnotation,
             cropOverlayVisible: false,
-            commentEditorVisible: false);
+            commentEditorVisible: false,
+            idleWarningVisible: false,
+            sessionConfirmationVisible: false,
+            isTerminal: false);
 
-        Assert.True(renderSurface);
+        Assert.True(presentation.CaptureSurfaceVisible);
     }
 
     [Fact]

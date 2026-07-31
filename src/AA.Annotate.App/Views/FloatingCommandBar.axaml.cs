@@ -1,7 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia;
 
 namespace AA.Annotate.App.Views;
 
@@ -30,6 +31,8 @@ public partial class FloatingCommandBar : UserControl
 
     public event EventHandler? CancelRequested;
 
+    public event EventHandler<PointerPressedEventArgs>? DragRequested;
+
     public FloatingCommandBar()
     {
         InitializeComponent();
@@ -46,6 +49,7 @@ public partial class FloatingCommandBar : UserControl
         FinishButton.Click += (_, _) => FinishRequested?.Invoke(this, EventArgs.Empty);
         AboutButton.Click += (_, _) => AboutRequested?.Invoke(this, EventArgs.Empty);
         CancelButton.Click += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
+        DragGrip.PointerPressed += OnDragGripPointerPressed;
     }
 
     public void SetCaptureNumber(int number)
@@ -119,5 +123,16 @@ public partial class FloatingCommandBar : UserControl
     {
         Opacity = 1;
         RootBorder.Background = _isPanelHoverActive ? _solidBrush : _restBrush;
+    }
+
+    private void OnDragGripPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        DragRequested?.Invoke(this, e);
+        e.Handled = true;
     }
 }

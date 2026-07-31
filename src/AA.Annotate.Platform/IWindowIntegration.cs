@@ -4,7 +4,7 @@ public interface IWindowIntegration
 {
     void SuppressBorder(nint windowHandle);
 
-    IDisposable EnableTransparentHitTest(
-        nint windowHandle,
-        Func<int, int, bool> shouldHandleScreenPoint);
+    void BringToFrontWithoutActivation(nint windowHandle);
+
+    void FlushCompositor();
 }

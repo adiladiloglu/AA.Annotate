@@ -30,12 +30,14 @@ public partial class MainWindow : Window
     private readonly IDisplayCatalog _displayCatalog;
     private readonly IScreenCaptureService _captureService;
     private readonly IWindowIntegration _windowIntegration;
+    private readonly ToolbarWindow _toolbarWindow;
+    private readonly ToolbarPlacementController _toolbarPlacementController;
+    private readonly OverlayWindowCoordinator _windowCoordinator;
     private readonly PortableImageCropWriter _cropWriter = new();
     private readonly CapturePreviewWriter _previewWriter = new();
     private readonly IExportDestinationPicker _exportDestinationPicker = new ExportDestinationPicker();
     private readonly LaunchCaller _launchCaller;
     private readonly int _defaultScalePercent;
-    private readonly HashSet<Control> _hoveredChromePanels = [];
     private readonly TimeSpan? _idleTimeout;
     private readonly string? _providedSessionFolder;
     private readonly string? _providedExportFolder;
@@ -59,10 +61,11 @@ public partial class MainWindow : Window
     private DispatcherTimer? _idleTimer;
     private DispatcherTimer? _idleWarningTimer;
     private DispatcherTimer? _captureHeartbeatTimer;
-    private IDisposable? _nativeHitTestHook;
     private CancellationTokenSource? _captureCancellation;
     private TaskCompletionSource<bool>? _sessionConfirmation;
     private bool _isFinishing;
+    private bool _isUiInitialized;
+    private bool _isFinalClose;
 
     public MainWindow()
         : this(null, null, null, null, null, CaptureScale.DefaultPercent, LaunchCaller.Human)
@@ -110,14 +113,23 @@ public partial class MainWindow : Window
         _defaultScalePercent = CaptureScale.Clamp(defaultScalePercent);
         _launchCaller = launchCaller;
         InitializeComponent();
-        ConfigureChromePanelHover(CommandBar);
-        ConfigureChromePanelHover(CaptureScaleSelector);
-        ConfigureChromePanelHover(DisplayDropdown);
-        ConfigureChromePanelHover(CaptureDropdown);
-        ConfigureChromePanelHover(AboutPanel);
-        ConfigureChromePanelHover(CaptureStatusPanel);
+        _toolbarWindow = new ToolbarWindow();
+        _toolbarPlacementController = new ToolbarPlacementController(
+            _toolbarWindow,
+            new UiSettingsStore());
+        _windowCoordinator = new OverlayWindowCoordinator(
+            this,
+            _toolbarWindow,
+            _windowIntegration,
+            _toolbarPlacementController.ClampToVisibleArea);
         Opened += OnOpened;
         Closing += OnClosing;
+        _toolbarWindow.Closing += OnToolbarClosing;
+        AnnotationCanvas.AddHandler(
+            PointerPressedEvent,
+            OnAnnotationPointerPressedTunnel,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
         AnnotationCanvas.PointerPressed += OnAnnotationPointerPressed;
         AnnotationCanvas.PointerMoved += OnAnnotationPointerMoved;
         AnnotationCanvas.PointerReleased += OnAnnotationPointerReleased;
@@ -159,18 +171,51 @@ public partial class MainWindow : Window
         AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
         CommandBar.SetAgentCompletion(_launchCaller == LaunchCaller.Agent);
         IdleWarningSendButton.Content = _launchCaller == LaunchCaller.Agent ? "Send" : "Export";
-        AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(PointerReleasedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(PointerWheelChangedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(KeyDownEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        RegisterUserActivityHandlers(this);
+        RegisterUserActivityHandlers(_toolbarWindow);
+    }
+
+    private FloatingCommandBar CommandBar => _toolbarWindow.CommandBarView;
+
+    private CaptureScaleSelector CaptureScaleSelector => _toolbarWindow.CaptureScaleSelectorView;
+
+    private DisplayDropdown DisplayDropdown => _toolbarWindow.DisplayDropdownView;
+
+    private CaptureDropdown CaptureDropdown => _toolbarWindow.CaptureDropdownView;
+
+    private Button AboutCloseButton => _toolbarWindow.AboutCloseButton;
+
+    private TextBlock AboutVersionText => _toolbarWindow.AboutVersionText;
+
+    private TextBlock AboutGitHubLinkText => _toolbarWindow.AboutGitHubLinkText;
+
+    private Button CaptureStatusDismissButton => _toolbarWindow.CaptureStatusDismissButton;
+
+    private TextBlock CaptureStatusTitleText => _toolbarWindow.CaptureStatusTitleText;
+
+    private TextBlock CaptureStatusMessageText => _toolbarWindow.CaptureStatusMessageText;
+
+    private void RegisterUserActivityHandlers(Interactive source)
+    {
+        source.AddHandler(PointerPressedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        source.AddHandler(PointerMovedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        source.AddHandler(PointerReleasedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        source.AddHandler(PointerWheelChangedEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        source.AddHandler(KeyDownEvent, OnUserActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     private async void OnOpened(object? sender, EventArgs e)
     {
-        SuppressNativeWindowBorder();
-        InstallNativeHitTestPassThrough();
+        if (_isUiInitialized)
+        {
+            return;
+        }
+
+        _isUiInitialized = true;
+        _windowCoordinator.InitializeToolbar();
         PlaceOnPrimaryDisplay();
+        await _toolbarPlacementController.InitializeAsync();
+        _windowCoordinator.RevealToolbar();
         await EnsureSessionAsync();
         AboutVersionText.Text = CreateAboutVersionText();
         ResetIdleTimer();
@@ -178,146 +223,22 @@ public partial class MainWindow : Window
         CommandBar.PlayStartupAttentionAnimation();
     }
 
-    private void SuppressNativeWindowBorder()
-    {
-        if (TryGetPlatformHandle()?.Handle is { } handle)
-        {
-            _windowIntegration.SuppressBorder(handle);
-        }
-    }
-
-    private void InstallNativeHitTestPassThrough()
-    {
-        if (TryGetPlatformHandle()?.Handle is not { } handle)
-        {
-            return;
-        }
-
-        _nativeHitTestHook?.Dispose();
-        _nativeHitTestHook = _windowIntegration.EnableTransparentHitTest(
-            handle,
-            ShouldHandleNativeHitTest);
-    }
-
-    private bool ShouldHandleNativeHitTest(int screenX, int screenY)
-    {
-        var point = ToWindowPoint(screenX, screenY);
-        return OverlayHitTestPolicy.ShouldHandlePoint(
-            IsFullSurfaceInputActive(),
-            GetVisibleChromeRects(),
-            point);
-    }
-
-    private PointInt ToWindowPoint(int screenX, int screenY)
-    {
-        var scaling = RenderScaling > 0 ? RenderScaling : 1;
-        return new PointInt(
-            (int)Math.Round((screenX - Position.X) / scaling),
-            (int)Math.Round((screenY - Position.Y) / scaling));
-    }
-
-    private IEnumerable<RectInt> GetVisibleChromeRects()
-    {
-        if (!ChromeCanvas.IsVisible)
-        {
-            yield break;
-        }
-
-        foreach (var control in new Control[] { CommandBar, CaptureScaleSelector, CommentEditor })
-        {
-            if (TryGetVisibleControlWindowRect(control) is { } rect)
-            {
-                yield return rect;
-            }
-        }
-    }
-
-    private RectInt? TryGetVisibleControlWindowRect(Control control)
-    {
-        if (!control.IsVisible || control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
-        {
-            return null;
-        }
-
-        var topLeft = control.TranslatePoint(new Point(0, 0), this);
-        if (topLeft is null)
-        {
-            return null;
-        }
-
-        return new RectInt(
-            (int)Math.Floor(topLeft.Value.X),
-            (int)Math.Floor(topLeft.Value.Y),
-            Math.Max(1, (int)Math.Ceiling(control.Bounds.Width)),
-            Math.Max(1, (int)Math.Ceiling(control.Bounds.Height)));
-    }
-
-    private void ConfigureChromePanelHover(Control panel)
-    {
-        panel.PointerEntered += (_, _) =>
-        {
-            _hoveredChromePanels.Add(panel);
-            UpdateChromePanelHoverState();
-        };
-        panel.PointerExited += (_, _) =>
-        {
-            _hoveredChromePanels.Remove(panel);
-            UpdateChromePanelHoverState();
-        };
-    }
-
-    private void UpdateChromePanelHoverState()
-    {
-        var isActive = _hoveredChromePanels.Any(panel => panel.IsVisible);
-        CommandBar.SetPanelHoverActive(isActive);
-        DisplayDropdown.SetPanelHoverActive(isActive);
-        CaptureDropdown.SetPanelHoverActive(isActive);
-        SetAboutPanelHoverActive(isActive);
-    }
-
-    private void SetAboutPanelHoverActive(bool isActive)
-    {
-        var panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
-        AboutPanel.Opacity = 1;
-        AboutPanel.Background = panelBrush;
-    }
-
     private bool IsDisplayDropdownOpen
     {
-        get => DisplayDropdownPopup.IsOpen;
-        set
-        {
-            DisplayDropdownPopup.IsOpen = value;
-            ClearClosedPopupHover(DisplayDropdown, value);
-        }
+        get => _toolbarWindow.IsDisplayDropdownOpen;
+        set => _toolbarWindow.IsDisplayDropdownOpen = value;
     }
 
     private bool IsCaptureDropdownOpen
     {
-        get => CaptureDropdownPopup.IsOpen;
-        set
-        {
-            CaptureDropdownPopup.IsOpen = value;
-            ClearClosedPopupHover(CaptureDropdown, value);
-        }
+        get => _toolbarWindow.IsCaptureDropdownOpen;
+        set => _toolbarWindow.IsCaptureDropdownOpen = value;
     }
 
     private bool IsAboutPanelOpen
     {
-        get => AboutPanelPopup.IsOpen;
-        set
-        {
-            AboutPanelPopup.IsOpen = value;
-            ClearClosedPopupHover(AboutPanel, value);
-        }
-    }
-
-    private void ClearClosedPopupHover(Control panel, bool isOpen)
-    {
-        if (!isOpen && _hoveredChromePanels.Remove(panel))
-        {
-            UpdateChromePanelHoverState();
-        }
+        get => _toolbarWindow.IsAboutPanelOpen;
+        set => _toolbarWindow.IsAboutPanelOpen = value;
     }
 
     private static void OpenGitHubRepository()
@@ -509,33 +430,6 @@ public partial class MainWindow : Window
         SetActiveDisplay(display, fullscreen: false);
     }
 
-    private void PlaceOnDisplay(DisplayDescriptor display, bool fullscreen)
-    {
-        _activeDisplay = display;
-        var screen = Screens.ScreenFromPoint(new PixelPoint(
-            display.Bounds.X + display.Bounds.Width / 2,
-            display.Bounds.Y + display.Bounds.Height / 2));
-        var bounds = screen?.Bounds ?? new PixelRect(display.Bounds.X, display.Bounds.Y, display.Bounds.Width, display.Bounds.Height);
-        var scaling = screen?.Scaling > 0 ? screen.Scaling : RenderScaling;
-
-        if (fullscreen)
-        {
-            ChromeCanvas.RenderTransform = null;
-            Position = new PixelPoint(bounds.X, bounds.Y);
-            Width = bounds.Width / scaling;
-            Height = bounds.Height / scaling;
-            return;
-        }
-
-        var footprint = MeasureVisibleChromeFootprint();
-        ChromeCanvas.RenderTransform = new TranslateTransform(-footprint.X, -footprint.Y);
-        Position = new PixelPoint(
-            bounds.X + (int)Math.Round(footprint.X * scaling),
-            bounds.Y + (int)Math.Round(footprint.Y * scaling));
-        Width = Math.Ceiling(footprint.Width);
-        Height = Math.Ceiling(footprint.Height);
-    }
-
     private void ToggleDisplayDropdown()
     {
         if (_isCapturing)
@@ -591,8 +485,9 @@ public partial class MainWindow : Window
 
     private void SetActiveDisplay(DisplayDescriptor display, bool fullscreen)
     {
-        PlaceOnDisplay(display, fullscreen);
-        SuppressNativeWindowBorder();
+        _ = fullscreen;
+        _activeDisplay = display;
+        ApplyCurrentPresentation();
     }
 
     private async Task CaptureAsync(bool activateAnnotationAfterCapture = true)
@@ -638,11 +533,17 @@ public partial class MainWindow : Window
             CommentEditor.IsVisible = false;
             CropOverlay.IsVisible = false;
             RefreshCropMaskVisibility(forceHidden: true);
+            _windowCoordinator.CloseToolbarPopups();
             SetActiveDisplay(display, fullscreen: true);
 
             var platformHandle = TryGetPlatformHandle();
-            Hide();
+            await Dispatcher.UIThread.InvokeAsync(
+                static () => { },
+                DispatcherPriority.Render);
+            _windowIntegration.FlushCompositor();
             await Task.Delay(TimeSpan.FromMilliseconds(180), cancellationToken);
+            display = ResolveAvailableDisplay(display);
+            _activeDisplay = display;
 
             var result = await _captureService.CaptureScreenAsync(new ScreenCaptureRequest(
                 screenshotPath,
@@ -734,11 +635,9 @@ public partial class MainWindow : Window
             if (!_hasTerminalStatus)
             {
                 StopCaptureHeartbeat();
-                Show();
                 ApplyCurrentWindowMode();
                 RefreshCropMaskVisibility();
                 UpdateChrome();
-                Activate();
                 ResetIdleTimer();
                 if (captureFeedback is not null)
                 {
@@ -755,13 +654,12 @@ public partial class MainWindow : Window
         IsAboutPanelOpen = false;
         CaptureStatusTitleText.Text = feedback.Title;
         CaptureStatusMessageText.Text = feedback.Message;
-        CaptureStatusPopup.IsOpen = true;
+        _toolbarWindow.IsCaptureStatusOpen = true;
     }
 
     private void CloseCaptureStatusFeedback()
     {
-        CaptureStatusPopup.IsOpen = false;
-        ClearClosedPopupHover(CaptureStatusPanel, isOpen: false);
+        _toolbarWindow.IsCaptureStatusOpen = false;
     }
 
     private void StartCaptureHeartbeat()
@@ -1009,34 +907,29 @@ public partial class MainWindow : Window
         return _displayCatalog.GetDisplayContainingPoint(center);
     }
 
-    private bool IsBlockingSurfaceActive()
+    private DisplayDescriptor ResolveAvailableDisplay(DisplayDescriptor preferred)
     {
-        return InteractionSurfacePolicy.ShouldUseFullscreen(
-            _isCapturing,
-            _isDrawing,
-            _session.Mode,
-            CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || SessionConfirmationOverlay.IsVisible);
+        var displays = _displayCatalog.GetDisplays();
+        return displays.FirstOrDefault(display =>
+                   !string.IsNullOrWhiteSpace(preferred.Id)
+                   && string.Equals(display.Id, preferred.Id, StringComparison.Ordinal))
+            ?? displays.FirstOrDefault(display =>
+                string.Equals(display.Name, preferred.Name, StringComparison.OrdinalIgnoreCase)
+                && display.Bounds == preferred.Bounds)
+            ?? _displayCatalog.GetDisplayContainingPoint(new PointInt(
+                preferred.Bounds.X + preferred.Bounds.Width / 2,
+                preferred.Bounds.Y + preferred.Bounds.Height / 2));
     }
 
-    private bool IsFullSurfaceInputActive()
+    private bool IsBlockingSurfaceActive()
     {
-        return InteractionSurfacePolicy.ShouldHandleFullSurfaceInput(
-            _isCapturing,
-            _isDrawing,
-            _session.Mode,
-            CropOverlay.IsVisible,
-            CommentEditor.IsVisible || IdleWarningOverlay.IsVisible || SessionConfirmationOverlay.IsVisible);
+        return CreateCurrentPresentation().OverlayVisible;
     }
 
     private bool ShouldRenderCaptureSurface()
     {
         return _session.CurrentCapture is not null &&
-            InteractionSurfacePolicy.ShouldRenderCaptureSurface(
-                _isDrawing,
-                _session.Mode,
-                CropOverlay.IsVisible,
-                CommentEditor.IsVisible);
+            CreateCurrentPresentation().CaptureSurfaceVisible;
     }
 
     private void RefreshCaptureSurfaceVisibility()
@@ -1052,29 +945,28 @@ public partial class MainWindow : Window
 
     private void ApplyCurrentWindowMode()
     {
-        if (_activeDisplay is { } display)
-        {
-            SetActiveDisplay(display, IsBlockingSurfaceActive());
-        }
+        ApplyCurrentPresentation();
     }
 
-    private Rect MeasureVisibleChromeFootprint()
+    private OverlayPresentation CreateCurrentPresentation()
     {
-        return CommandBar.IsVisible
-            ? GetCanvasBounds(CommandBar)
-            : new Rect(0, 0, 1, 1);
+        return OverlayPresentationPolicy.Create(
+            _isCapturing,
+            _isDrawing,
+            _session.Mode,
+            CropOverlay.IsVisible,
+            CommentEditor.IsVisible,
+            IdleWarningOverlay.IsVisible,
+            SessionConfirmationOverlay.IsVisible,
+            _hasTerminalStatus);
     }
 
-    private static Rect GetCanvasBounds(Control control)
+    private void ApplyCurrentPresentation()
     {
-        control.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var width = control.DesiredSize.Width > 0 ? control.DesiredSize.Width : control.Bounds.Width;
-        var height = control.DesiredSize.Height > 0 ? control.DesiredSize.Height : control.Bounds.Height;
-        return new Rect(
-            Read(Canvas.GetLeft(control)),
-            Read(Canvas.GetTop(control)),
-            Math.Max(1, width),
-            Math.Max(1, height));
+        var presentation = CreateCurrentPresentation();
+        ScreenshotSurface.IsVisible = _session.CurrentCapture is not null && presentation.CaptureSurfaceVisible;
+        AnnotationCanvas.IsVisible = ScreenshotSurface.IsVisible;
+        _windowCoordinator.Apply(presentation, _activeDisplay);
     }
 
     private void SelectCapture(CaptureViewModel capture)
@@ -1331,19 +1223,43 @@ public partial class MainWindow : Window
     private void OnAnnotationPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_session.CurrentCapture is null ||
-            _session.Mode is not (AnnotationInteractionMode.DrawingAnnotation or AnnotationInteractionMode.DrawingPrivacyMask))
+            _session.Mode is not (AnnotationInteractionMode.DrawingAnnotation or AnnotationInteractionMode.DrawingPrivacyMask) ||
+            !e.GetCurrentPoint(AnnotationCanvas).Properties.IsLeftButtonPressed)
         {
             return;
         }
 
+        BeginBoxDrawing(e);
+    }
+
+    private void OnAnnotationPointerPressedTunnel(object? sender, PointerPressedEventArgs e)
+    {
+        var isLeftButtonPressed = e.GetCurrentPoint(AnnotationCanvas).Properties.IsLeftButtonPressed;
+        if (_session.CurrentCapture is null ||
+            !OverlayCreationGesturePolicy.ShouldForceNewBox(
+                _session.Mode,
+                e.KeyModifiers,
+                isLeftButtonPressed))
+        {
+            return;
+        }
+
+        BeginBoxDrawing(e);
+        e.Handled = true;
+    }
+
+    private void BeginBoxDrawing(PointerPressedEventArgs e)
+    {
         _isDrawing = true;
         SetChromeVisible(false);
         _drawStart = e.GetPosition(AnnotationCanvas);
         _draftBox = CreateDraftBox();
+        _draftBox.ZIndex = 200;
         Canvas.SetLeft(_draftBox, _drawStart.X);
         Canvas.SetTop(_draftBox, _drawStart.Y);
         AnnotationCanvas.Children.Add(_draftBox);
         _draftWarning = CreateDraftWarning();
+        _draftWarning.ZIndex = 210;
         AnnotationCanvas.Children.Add(_draftWarning);
         PositionDraftWarning(new RectInt((int)Math.Round(_drawStart.X), (int)Math.Round(_drawStart.Y), 0, 0));
         e.Pointer.Capture(AnnotationCanvas);
@@ -1491,6 +1407,7 @@ public partial class MainWindow : Window
 
                 RefreshAnnotations();
             };
+            ConfigureOverlayCreationHint(mask);
             Canvas.SetLeft(mask, privacyMask.BoxRect.X);
             Canvas.SetTop(mask, privacyMask.BoxRect.Y);
             AnnotationCanvas.Children.Add(mask);
@@ -1509,10 +1426,13 @@ public partial class MainWindow : Window
                     UpdateAnnotationExportState(currentCapture, annotation);
                 }
             };
+            ConfigureOverlayCreationHint(box);
             Canvas.SetLeft(box, annotation.BoxRect.X);
             Canvas.SetTop(box, annotation.BoxRect.Y);
             AnnotationCanvas.Children.Add(box);
         }
+
+        UpdateOverlayCreationHints();
     }
 
     private void UpdateAnnotationExportStates(CaptureViewModel capture)
@@ -1811,11 +1731,16 @@ public partial class MainWindow : Window
         SessionConfirmationConfirmButton.Content = presentation.ConfirmText;
         SetSessionConfirmationActionStyle(presentation.IsDestructive);
         SessionConfirmationOverlay.IsVisible = true;
-        SessionConfirmationOverlay.Focus();
         if (_activeDisplay is { } display)
         {
             SetActiveDisplay(display, fullscreen: true);
         }
+        else
+        {
+            ApplyCurrentWindowMode();
+        }
+
+        SessionConfirmationOverlay.Focus();
 
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _sessionConfirmation = completion;
@@ -1924,24 +1849,39 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    private async void OnToolbarClosing(object? sender, WindowClosingEventArgs e)
     {
-        _captureCancellation?.Cancel();
-        DisposeNativeHitTestHook();
-        if (_hasTerminalStatus || _paths is null)
+        if (_hasTerminalStatus)
         {
             return;
         }
 
-        StopIdleTimers();
-        _hasTerminalStatus = true;
-        await _store.MarkCancelledAsync(_paths);
+        e.Cancel = true;
+        await RequestCancelAsync();
     }
 
-    private void DisposeNativeHitTestHook()
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        _nativeHitTestHook?.Dispose();
-        _nativeHitTestHook = null;
+        if (_isFinalClose)
+        {
+            return;
+        }
+
+        if (!_hasTerminalStatus)
+        {
+            e.Cancel = true;
+            await RequestCancelAsync();
+            return;
+        }
+
+        e.Cancel = true;
+        _captureCancellation?.Cancel();
+        StopIdleTimers();
+        await _toolbarPlacementController.FlushAsync();
+        _toolbarPlacementController.Dispose();
+        _isFinalClose = true;
+        _windowCoordinator.CloseToolbar();
+        Close();
     }
 
     private void StopIdleTimers()
@@ -2032,6 +1972,7 @@ public partial class MainWindow : Window
     private void UpdateChrome()
     {
         RefreshCaptureSurfaceVisibility();
+        UpdateOverlayCreationHints();
         var canUseCaptureControls = CanUseCaptureControls();
         CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
         if (_session.CurrentCapture is { } capture)
@@ -2050,6 +1991,77 @@ public partial class MainWindow : Window
         {
             Dispatcher.UIThread.Post(ApplyCurrentWindowMode);
         }
+    }
+
+    private void UpdateOverlayCreationHints()
+    {
+        var hint = OverlayCreationGesturePolicy.GetExistingBoxHint(_session.Mode);
+        if (hint is null)
+        {
+            OverlayCreationHint.IsVisible = false;
+            return;
+        }
+
+        OverlayCreationHintText.Text = hint;
+    }
+
+    private void ConfigureOverlayCreationHint(Control control)
+    {
+        control.PointerEntered += OnOverlayBoxPointerEntered;
+        control.PointerMoved += OnOverlayBoxPointerMoved;
+        control.PointerExited += OnOverlayBoxPointerExited;
+    }
+
+    private void OnOverlayBoxPointerEntered(object? sender, PointerEventArgs e)
+    {
+        MoveOverlayCreationHint(e);
+    }
+
+    private void OnOverlayBoxPointerMoved(object? sender, PointerEventArgs e)
+    {
+        MoveOverlayCreationHint(e);
+    }
+
+    private void OnOverlayBoxPointerExited(object? sender, PointerEventArgs e)
+    {
+        OverlayCreationHint.IsVisible = false;
+    }
+
+    private void MoveOverlayCreationHint(PointerEventArgs e)
+    {
+        var hint = OverlayCreationGesturePolicy.GetExistingBoxHint(_session.Mode);
+        if (hint is null)
+        {
+            OverlayCreationHint.IsVisible = false;
+            return;
+        }
+
+        OverlayCreationHintText.Text = hint;
+        OverlayCreationHint.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var hintSize = OverlayCreationHint.DesiredSize;
+        var viewport = ChromeCanvas.Bounds.Size;
+        var pointer = e.GetPosition(ChromeCanvas);
+        const double offset = 14;
+        var x = pointer.X + offset;
+        var y = pointer.Y + offset;
+
+        if (x + hintSize.Width > viewport.Width)
+        {
+            x = pointer.X - hintSize.Width - offset;
+        }
+
+        if (y + hintSize.Height > viewport.Height)
+        {
+            y = pointer.Y - hintSize.Height - offset;
+        }
+
+        Canvas.SetLeft(
+            OverlayCreationHint,
+            Math.Clamp(x, 0, Math.Max(0, viewport.Width - hintSize.Width)));
+        Canvas.SetTop(
+            OverlayCreationHint,
+            Math.Clamp(y, 0, Math.Max(0, viewport.Height - hintSize.Height)));
+        OverlayCreationHint.IsVisible = true;
     }
 
     private bool CanUseCaptureControls()
@@ -2080,6 +2092,11 @@ public partial class MainWindow : Window
 
     private void SetChromeVisible(bool isVisible)
     {
+        if (!isVisible)
+        {
+            OverlayCreationHint.IsVisible = false;
+        }
+
         ChromeCanvas.IsVisible = isVisible;
     }
 

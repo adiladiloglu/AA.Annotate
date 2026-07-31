@@ -6,19 +6,11 @@ public sealed class NoOpWindowIntegration : IWindowIntegration
     {
     }
 
-    public IDisposable EnableTransparentHitTest(
-        nint windowHandle,
-        Func<int, int, bool> shouldHandleScreenPoint)
+    public void BringToFrontWithoutActivation(nint windowHandle)
     {
-        return EmptyDisposable.Instance;
     }
 
-    private sealed class EmptyDisposable : IDisposable
+    public void FlushCompositor()
     {
-        public static readonly EmptyDisposable Instance = new();
-
-        public void Dispose()
-        {
-        }
     }
 }
