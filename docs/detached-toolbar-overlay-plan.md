@@ -204,7 +204,7 @@ repeated activation.
   coordinate fidelity.
 - Idle mode has no display-sized window consuming input.
 - Modal states cannot trigger commands behind their dimmer.
-- Captured images exclude all AA Annotate windows.
+- Captured images exclude all AA.Annotate windows.
 - Missing, corrupt, or inaccessible UI settings never block startup.
 - A removed or reconfigured display cannot strand the toolbar off-screen.
 - Existing annotation, session, export, CLI, and capture behavior remains

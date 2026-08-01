@@ -14,7 +14,7 @@ internal sealed class ExportDestinationPicker : IExportDestinationPicker
     {
         var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Choose AA Annotate export destination",
+            Title = "Choose AA.Annotate export destination",
             AllowMultiple = false
         });
         return folders.Count == 0 ? null : folders[0].TryGetLocalPath();

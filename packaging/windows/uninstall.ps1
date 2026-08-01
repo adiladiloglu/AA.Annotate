@@ -51,7 +51,7 @@ if ($RemoveUserAppEnvironmentVariable) {
     [Environment]::SetEnvironmentVariable('AA_ANNOTATE_APP', $null, 'User')
 }
 
-Write-Host "AA Annotate uninstalled from:"
+Write-Host "AA.Annotate uninstalled from:"
 Write-Host "  $InstallRoot"
 Write-Host "  $skillTarget"
 if ($RemoveCodexPlugin) {

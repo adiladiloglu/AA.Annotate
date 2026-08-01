@@ -7,8 +7,6 @@ namespace AA.Annotate.App.Views;
 public partial class CaptureDropdown : UserControl
 {
     private readonly Avalonia.Media.IBrush? _panelBrush;
-    private readonly Avalonia.Media.IBrush? _itemBrush;
-    private readonly Avalonia.Media.IBrush? _selectedItemBrush;
     private readonly Dictionary<Button, CaptureViewModel> _items = [];
     private readonly Dictionary<Button, CaptureViewModel> _deleteItems = [];
 
@@ -22,8 +20,6 @@ public partial class CaptureDropdown : UserControl
     {
         InitializeComponent();
         _panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as Avalonia.Media.IBrush;
-        _itemBrush = App.Current?.FindResource("PanelItemBrush") as Avalonia.Media.IBrush;
-        _selectedItemBrush = App.Current?.FindResource("PanelItemSelectedBrush") as Avalonia.Media.IBrush;
         SetPanelHoverActive(false);
         NewCaptureButton.Click += (_, _) => NewCaptureRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -47,14 +43,13 @@ public partial class CaptureDropdown : UserControl
                 Width = 126,
                 Height = 44,
                 Padding = new Avalonia.Thickness(4),
-                Background = capture.IsSelected
-                    ? _selectedItemBrush
-                    : _itemBrush,
-                BorderBrush = App.Current?.FindResource("OverlayBorderBrush") as Avalonia.Media.IBrush,
-                BorderThickness = new Avalonia.Thickness(1),
-                CornerRadius = new Avalonia.CornerRadius(7),
+                Classes = { "panelItemButton" },
                 Content = CreateContent(capture)
             };
+            if (capture.IsSelected)
+            {
+                button.Classes.Add("selectedPanelItemButton");
+            }
 
             _items[button] = capture;
             button.Click += OnCaptureClicked;
@@ -64,7 +59,7 @@ public partial class CaptureDropdown : UserControl
                 Width = 30,
                 Height = 44,
                 Padding = new Avalonia.Thickness(0),
-                Classes = { "iconButton" },
+                Classes = { "iconButton", "dangerIconButton" },
                 Content = new PathIcon
                 {
                     Width = 15,
@@ -132,7 +127,7 @@ public partial class CaptureDropdown : UserControl
                 new TextBlock
                 {
                     Text = capture.Number.ToString(),
-                    Foreground = Avalonia.Media.Brushes.White,
+                    Foreground = App.Current?.FindResource("PrimaryTextBrush") as Avalonia.Media.IBrush,
                     FontSize = 15,
                     LineHeight = 15,
                     FontWeight = Avalonia.Media.FontWeight.SemiBold,

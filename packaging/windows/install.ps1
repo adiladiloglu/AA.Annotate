@@ -214,7 +214,7 @@ if ($InstallCodexPlugin) {
     $pluginInstall = Install-CodexPlugin -PackageRoot $packageRoot -PluginsRoot $PluginsRoot -MarketplacePath $MarketplacePath
 }
 
-Write-Host "AA Annotate installed."
+Write-Host "AA.Annotate installed."
 Write-Host "App:   $appExe"
 Write-Host "CLI:   $cliExe"
 if ($InstallCodexPlugin) {

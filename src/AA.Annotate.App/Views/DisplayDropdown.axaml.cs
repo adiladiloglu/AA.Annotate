@@ -13,8 +13,6 @@ public partial class DisplayDropdown : UserControl
     private const int MapHeight = 112;
     private const int MapPadding = 8;
     private readonly IBrush? _panelBrush;
-    private readonly IBrush? _itemBrush;
-    private readonly IBrush? _selectedItemBrush;
     private readonly Dictionary<Button, DisplayViewModel> _items = [];
 
     public event EventHandler<DisplayViewModel>? DisplaySelected;
@@ -23,8 +21,6 @@ public partial class DisplayDropdown : UserControl
     {
         InitializeComponent();
         _panelBrush = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
-        _itemBrush = App.Current?.FindResource("PanelItemBrush") as IBrush;
-        _selectedItemBrush = App.Current?.FindResource("PanelItemSelectedBrush") as IBrush;
         SetPanelHoverActive(false);
     }
 
@@ -53,16 +49,15 @@ public partial class DisplayDropdown : UserControl
                 Width = bounds.Width,
                 Height = bounds.Height,
                 Padding = new Thickness(0),
-                Background = display.IsCurrent
-                    ? _selectedItemBrush
-                    : _itemBrush,
-                BorderBrush = App.Current?.FindResource("OverlayBorderBrush") as Avalonia.Media.IBrush,
-                BorderThickness = new Avalonia.Thickness(1),
-                CornerRadius = new Avalonia.CornerRadius(5),
+                Classes = { "panelItemButton" },
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
                 Content = CreateContent(display)
             };
+            if (display.IsCurrent)
+            {
+                button.Classes.Add("selectedPanelItemButton");
+            }
 
             _items[button] = display;
             button.Click += OnDisplayClicked;
@@ -79,7 +74,7 @@ public partial class DisplayDropdown : UserControl
             Child = new TextBlock
             {
                 Text = display.Number.ToString(),
-                Foreground = Avalonia.Media.Brushes.White,
+                Foreground = App.Current?.FindResource("PrimaryTextBrush") as Avalonia.Media.IBrush,
                 FontSize = 19,
                 FontWeight = FontWeight.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,

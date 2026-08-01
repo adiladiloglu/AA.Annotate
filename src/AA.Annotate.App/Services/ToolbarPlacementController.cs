@@ -14,6 +14,7 @@ internal sealed class ToolbarPlacementController : IDisposable
     private readonly DispatcherTimer _saveTimer;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private Size _lastSize;
+    private PixelPoint _preferredPosition;
     private bool _isApplyingPlacement;
     private bool _isInitialized;
     private bool _isDisposed;
@@ -25,6 +26,8 @@ internal sealed class ToolbarPlacementController : IDisposable
         _saveTimer = new DispatcherTimer { Interval = SaveDelay };
         _saveTimer.Tick += OnSaveTimerTick;
     }
+
+    public PixelPoint PreferredPosition => _preferredPosition;
 
     public async Task InitializeAsync()
     {
@@ -50,6 +53,7 @@ internal sealed class ToolbarPlacementController : IDisposable
         _window.PositionChanged += OnPositionChanged;
         _window.LayoutUpdated += OnLayoutUpdated;
         _window.Screens.Changed += OnScreensChanged;
+        _window.DragCompleted += OnToolbarDragCompleted;
     }
 
     public async Task FlushAsync()
@@ -73,12 +77,24 @@ internal sealed class ToolbarPlacementController : IDisposable
         var displays = GetDisplays();
         var size = GetToolbarSize();
         var display = ToolbarPlacementProjector.FindDisplay(
-                _window.Position,
+                _preferredPosition,
                 size,
                 displays,
                 GetToolbarScaling())
             ?? displays.First();
-        ApplyPosition(ToolbarPlacementProjector.Clamp(_window.Position, size, display));
+        ApplyPosition(ToolbarPlacementProjector.Clamp(_preferredPosition, size, display));
+    }
+
+    public void SetPreferredPosition(PixelPoint position)
+    {
+        if (!_isInitialized || _isDisposed)
+        {
+            return;
+        }
+
+        ApplyPosition(position);
+        ClampToVisibleArea();
+        ScheduleSave();
     }
 
     public void Dispose()
@@ -96,6 +112,7 @@ internal sealed class ToolbarPlacementController : IDisposable
             _window.PositionChanged -= OnPositionChanged;
             _window.LayoutUpdated -= OnLayoutUpdated;
             _window.Screens.Changed -= OnScreensChanged;
+            _window.DragCompleted -= OnToolbarDragCompleted;
         }
 
     }
@@ -107,6 +124,12 @@ internal sealed class ToolbarPlacementController : IDisposable
             return;
         }
 
+        ScheduleSave();
+    }
+
+    private void OnToolbarDragCompleted(object? sender, EventArgs e)
+    {
+        _preferredPosition = _window.Position;
         ScheduleSave();
     }
 
@@ -148,7 +171,7 @@ internal sealed class ToolbarPlacementController : IDisposable
     {
         var displays = GetDisplays();
         var placement = ToolbarPlacementProjector.Project(
-            _window.Position,
+            _preferredPosition,
             GetToolbarSize(),
             displays,
             toolbarScaling: GetToolbarScaling());
@@ -166,6 +189,7 @@ internal sealed class ToolbarPlacementController : IDisposable
 
     private void ApplyPosition(PixelPoint position)
     {
+        _preferredPosition = position;
         _isApplyingPlacement = true;
         try
         {

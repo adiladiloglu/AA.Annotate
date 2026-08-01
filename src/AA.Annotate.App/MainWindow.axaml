@@ -5,7 +5,7 @@
     xmlns:views="clr-namespace:AA.Annotate.App.Views"
     Width="960"
     Height="540"
-    Title="AA Annotate"
+    Title="AA.Annotate"
     Background="Transparent"
     CanResize="False"
     ExtendClientAreaToDecorationsHint="True"
@@ -13,6 +13,7 @@
     ExtendClientAreaTitleBarHeightHint="-1"
     SystemDecorations="None"
     ShowInTaskbar="False"
+    Topmost="True"
     TransparencyLevelHint="Transparent">
   <Grid Name="RootGrid" Background="Transparent">
     <views:ScreenshotSurface Name="ScreenshotSurface" />
@@ -32,11 +33,14 @@
               BorderThickness="1"
               CornerRadius="{StaticResource RadiusSmall}">
         <TextBlock Name="OverlayCreationHintText"
-                   Foreground="White"
+                   Foreground="{StaticResource PrimaryTextBrush}"
                    FontSize="12"
                    FontWeight="SemiBold"
                    TextWrapping="Wrap" />
       </Border>
+    </Canvas>
+    <Canvas Name="EmbeddedToolbarLayer" IsVisible="False">
+      <ContentControl Name="EmbeddedToolbarHost" />
     </Canvas>
     <Grid Name="IdleWarningOverlay"
           IsVisible="False"
@@ -52,15 +56,15 @@
         <StackPanel Spacing="14">
           <TextBlock Name="IdleWarningTitleText"
                      Text="Annotation session is idle"
-                     Foreground="White"
+                     Foreground="{StaticResource PrimaryTextBrush}"
                      FontSize="18"
                      FontWeight="SemiBold" />
           <TextBlock Name="IdleWarningMessageText"
-                     Foreground="#EAF7FBFF"
+                     Foreground="{StaticResource SecondaryTextBrush}"
                      FontSize="13"
                      TextWrapping="Wrap" />
           <TextBlock Name="IdleWarningCountdownText"
-                     Foreground="#EAF7FBFF"
+                     Foreground="{StaticResource SecondaryTextBrush}"
                      FontSize="13"
                      FontWeight="SemiBold" />
           <StackPanel Orientation="Horizontal"
@@ -100,11 +104,11 @@
         <StackPanel Spacing="14">
           <TextBlock Name="SessionConfirmationTitleText"
                      Text="Finish annotation session?"
-                     Foreground="White"
+                     Foreground="{StaticResource PrimaryTextBrush}"
                      FontSize="18"
                      FontWeight="SemiBold" />
           <TextBlock Name="SessionConfirmationMessageText"
-                     Foreground="#EAF7FBFF"
+                     Foreground="{StaticResource SecondaryTextBrush}"
                      FontSize="13"
                      TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal"

@@ -65,7 +65,7 @@ function Save-UriToFile {
         [System.IO.File]::WriteAllBytes($Path, $bytes)
     }
     catch [System.Net.Http.HttpRequestException] {
-        throw "Failed to download AA Annotate release asset from $Uri. $($_.Exception.Message)"
+        throw "Failed to download AA.Annotate release asset from $Uri. $($_.Exception.Message)"
     }
     finally {
         $request.Dispose()
@@ -173,7 +173,7 @@ function Test-Installation {
     }
 
     Write-Host ''
-    Write-Host 'AA Annotate bootstrap verification passed.'
+    Write-Host 'AA.Annotate bootstrap verification passed.'
     Write-Host "App:   $appExe"
     Write-Host "CLI:   $cliExe"
     Write-Host "Skill: $skillFile"
@@ -195,7 +195,7 @@ New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
 
 try {
-    Write-Host "Downloading AA Annotate $($release.tag_name): $($asset.name)"
+    Write-Host "Downloading AA.Annotate $($release.tag_name): $($asset.name)"
     Save-UriToFile -Client $client -Uri $asset.url -Path $downloadPath
 
     Expand-Archive -LiteralPath $downloadPath -DestinationPath $extractRoot -Force

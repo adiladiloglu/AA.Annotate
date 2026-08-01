@@ -13,10 +13,15 @@ public sealed record SessionPaths(
 
     public string CapturesFolder => ExportCapturesFolder;
 
-    public static SessionPaths FromFolder(string sessionFolder, string? exportFolder = null)
+    public static SessionPaths FromFolder(
+        string sessionFolder,
+        string? exportFolder = null,
+        AppPathResolver? pathResolver = null)
     {
         var resolvedExportFolder = string.IsNullOrWhiteSpace(exportFolder)
-            ? CreateDefaultExportFolder(sessionFolder)
+            ? CreateDefaultExportFolder(
+                sessionFolder,
+                pathResolver ?? new AppPathResolver())
             : exportFolder;
 
         if (PathsReferToSameLocation(sessionFolder, resolvedExportFolder))
@@ -34,12 +39,20 @@ public sealed record SessionPaths(
             Path.Combine(resolvedExportFolder, "review.md"));
     }
 
-    private static string CreateDefaultExportFolder(string sessionFolder)
+    private static string CreateDefaultExportFolder(
+        string sessionFolder,
+        AppPathResolver pathResolver)
     {
         var sessionId = Path.GetFileName(sessionFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var exportFolder = Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", sessionId);
+        var exportFolder = Path.Combine(
+            pathResolver.GetPrivateRuntimeDirectory(),
+            "exports",
+            sessionId);
         return PathsReferToSameLocation(sessionFolder, exportFolder)
-            ? Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", $"{sessionId}-export")
+            ? Path.Combine(
+                pathResolver.GetPrivateRuntimeDirectory(),
+                "exports",
+                $"{sessionId}-export")
             : exportFolder;
     }
 

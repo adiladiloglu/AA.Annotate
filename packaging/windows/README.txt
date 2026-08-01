@@ -1,4 +1,4 @@
-AA Annotate Windows Package
+AA.Annotate Windows Package
 
 This package is distributed as:
 
@@ -27,7 +27,7 @@ environment variables. Agents can run the tool directly with:
 
 Store sessions outside the OS temp directory:
 
-  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --session-root "D:\AA Annotate Sessions"
+  & "$env:LOCALAPPDATA\AA.Annotate\cli\aa-annotate.exe" session --wait --session-root "D:\AA.Annotate Sessions"
 
 Show command help:
 

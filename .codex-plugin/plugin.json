@@ -1,6 +1,6 @@
 {
   "name": "aa-annotate",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Launch a desktop annotation overlay so users can mask private regions, mark screenshots, and return a visual handoff to Codex.",
   "author": {
     "name": "Adil Adiloglu",
@@ -19,9 +19,9 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "AA Annotate",
+    "displayName": "AA.Annotate",
     "shortDescription": "Collect visual screenshot annotations from users",
-    "longDescription": "AA Annotate lets Codex start a compact desktop overlay, wait while the user captures, masks, scales, and annotates one or more screenshots, and continue from the generated review handoff.",
+    "longDescription": "AA.Annotate lets Codex start a compact desktop overlay, wait while the user captures, masks, scales, and annotates one or more screenshots, and continue from the generated review handoff.",
     "developerName": "Adil Adiloglu",
     "category": "Developer Tools",
     "capabilities": [

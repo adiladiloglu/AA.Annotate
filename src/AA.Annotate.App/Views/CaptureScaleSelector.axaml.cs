@@ -15,10 +15,9 @@ public partial class CaptureScaleSelector : UserControl
         InitializeComponent();
         ScaleTextBox.LostFocus += (_, _) => CommitScaleText();
         ScaleTextBox.KeyDown += OnScaleTextKeyDown;
-        ScalePresetButton.PointerPressed += (_, e) =>
+        ScalePresetButton.Click += (_, _) =>
         {
             ScalePresetPopup.IsOpen = !ScalePresetPopup.IsOpen;
-            e.Handled = true;
         };
         ScalePreset100Button.Click += (_, _) => SelectScalePreset(100);
         ScalePreset75Button.Click += (_, _) => SelectScalePreset(75);
@@ -39,8 +38,13 @@ public partial class CaptureScaleSelector : UserControl
 
     public void ClearCapture()
     {
-        ScalePresetPopup.IsOpen = false;
+        ClosePopup();
         IsVisible = false;
+    }
+
+    public void ClosePopup()
+    {
+        ScalePresetPopup.IsOpen = false;
     }
 
     public void SetScale(int scalePercent, SizeInt pixelSize)

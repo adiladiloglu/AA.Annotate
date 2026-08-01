@@ -48,7 +48,7 @@ public static class ToolbarPlacementProjector
             var insetPixels = ToPhysicalPixels(initialInsetDips, display.Scaling);
             return ClampToTravelArea(
                 new PixelPoint(
-                    display.WorkingArea.X + insetPixels,
+                    travel.MinimumX + ((travel.MaximumX - travel.MinimumX) / 2),
                     display.WorkingArea.Y + insetPixels),
                 travel);
         }

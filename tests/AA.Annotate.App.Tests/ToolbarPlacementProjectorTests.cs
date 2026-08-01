@@ -218,7 +218,7 @@ public sealed class ToolbarPlacementProjectorTests
     }
 
     [Fact]
-    public void FirstLaunchUsesScaledInsetOnPrimaryDisplay()
+    public void FirstLaunchUsesTopCenterWithScaledInsetOnPrimaryDisplay()
     {
         var secondary = Display(
             "secondary",
@@ -237,7 +237,25 @@ public sealed class ToolbarPlacementProjectorTests
             new Size(400, 60),
             [secondary, primary]);
 
-        Assert.Equal(new PixelPoint(36, 76), restored);
+        Assert.Equal(new PixelPoint(980, 76), restored);
+    }
+
+    [Fact]
+    public void FirstLaunchCentersOnPrimaryDisplayWithNegativeOrigin()
+    {
+        var primary = Display(
+            "primary",
+            new PixelRect(-2560, -120, 2560, 1440),
+            new PixelRect(-2560, -80, 2560, 1400),
+            scaling: 1.25,
+            isPrimary: true);
+
+        var restored = ToolbarPlacementProjector.Restore(
+            placement: null,
+            new Size(400, 60),
+            [primary]);
+
+        Assert.Equal(new PixelPoint(-1530, -50), restored);
     }
 
     [Fact]

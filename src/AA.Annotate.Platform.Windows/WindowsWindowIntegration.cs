@@ -9,6 +9,11 @@ public sealed class WindowsWindowIntegration : IWindowIntegration
         WindowsNativeWindowChrome.SuppressBorder(windowHandle);
     }
 
+    public void SetAlwaysOnTop(nint windowHandle, bool enabled)
+    {
+        WindowsNativeWindowChrome.SetAlwaysOnTop(windowHandle, enabled);
+    }
+
     public void BringToFrontWithoutActivation(nint windowHandle)
     {
         WindowsNativeWindowChrome.BringToFrontWithoutActivation(windowHandle);

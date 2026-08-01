@@ -4,8 +4,8 @@
              x:Class="AA.Annotate.App.Views.CaptureScaleSelector"
              IsVisible="False">
   <Border Name="RootBorder"
-          Height="42"
-          Padding="10,6"
+          Height="44"
+          Padding="10,7"
           CornerRadius="{StaticResource RadiusLarge}"
           Background="{StaticResource OverlaySolidBrush}"
           BorderBrush="{StaticResource OverlayBorderBrush}"
@@ -13,7 +13,7 @@
     <Grid ColumnDefinitions="Auto,78,Auto" ColumnSpacing="8">
       <TextBlock Name="CaptureLabel"
                  VerticalAlignment="Center"
-                 Foreground="#EAF7FBFF"
+                 Foreground="{StaticResource PrimaryTextBrush}"
                  FontSize="12"
                  FontWeight="SemiBold" />
       <Border Name="ScaleBox"
@@ -27,21 +27,26 @@
                    Classes="scaleTextBox"
                    Padding="0"
                    Text="100%"
+                   Foreground="{StaticResource PrimaryTextBrush}"
+                   CaretBrush="{StaticResource PrimaryTextBrush}"
                    FontSize="12"
                    TextAlignment="Center"
                    HorizontalContentAlignment="Center"
                    VerticalContentAlignment="Center" />
-          <Border Name="ScalePresetButton"
+          <Button Name="ScalePresetButton"
                   Grid.Column="1"
-                  Background="Transparent"
+                  Classes="iconButton"
+                  Width="16"
+                  Height="30"
                   Cursor="Hand"
                   ToolTip.Tip="Scale presets">
             <PathIcon Width="9"
                       Height="9"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Center"
+                      Foreground="{Binding $parent[Button].Foreground}"
                       Data="M6,8 L12,14 L18,8 Z" />
-          </Border>
+          </Button>
           <primitives:Popup Name="ScalePresetPopup"
                             PlacementTarget="{Binding #ScaleBox}"
                             Placement="BottomEdgeAlignedRight"
@@ -69,7 +74,7 @@
                  Grid.Column="2"
                  MinWidth="92"
                  VerticalAlignment="Center"
-                 Foreground="#C8E2EBF6"
+                 Foreground="{StaticResource SecondaryTextBrush}"
                  FontSize="11"
                  TextAlignment="Right" />
     </Grid>

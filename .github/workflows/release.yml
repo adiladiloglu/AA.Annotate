@@ -6,11 +6,11 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
-    name: Build Windows Package
+    name: Test and package Windows
     runs-on: windows-latest
 
     steps:
@@ -30,19 +30,100 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ github.ref_name }}'.TrimStart('v')
-          .\scripts\package-win.ps1 -Version $version
+          ./scripts/package-win.ps1 -Version $version
 
-      - name: Create GitHub Release
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: artifacts/dist/aa-annotate-*-win-x64.zip
+          if-no-files-found: error
+
+  linux:
+    name: Test and package Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test AA.Annotate.slnx -v minimal
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          ./scripts/package-linux.ps1 -Version $version
+
+      - name: Verify executable archive entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(find artifacts/dist -maxdepth 1 -type f -name 'aa-annotate-*-linux-x64.tar.gz' -print -quit)
+          test -n "$archive"
+          tar -tvzf "$archive" > archive-contents.txt
+          awk '$1 ~ /^-rwx/ && $NF ~ /\/app\/AA\.Annotate\.App$/ { app = 1 }
+               $1 ~ /^-rwx/ && $NF ~ /\/cli\/aa-annotate$/ { cli = 1 }
+               $1 ~ /^-rwx/ && $NF ~ /\/install\.sh$/ { install = 1 }
+               $1 ~ /^-rwx/ && $NF ~ /\/uninstall\.sh$/ { uninstall = 1 }
+               END { exit !(app && cli && install && uninstall) }' archive-contents.txt
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: artifacts/dist/aa-annotate-*-linux-x64.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - windows
+      - linux
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts/release
+          merge-multiple: true
+
+      - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
-          $asset = "artifacts\dist\aa-annotate-$version-win-x64.zip"
-          $notes = "docs\release-notes\$tag.md"
+          $notes = "docs/release-notes/$tag.md"
           if (-not (Test-Path -LiteralPath $notes)) {
-            $notes = "docs\release-notes\v0.1.0.md"
+            throw "Release notes were not found: $notes"
+          }
+
+          $assets = @(
+            Get-ChildItem -LiteralPath 'artifacts/release' -File |
+              Where-Object {
+                $_.Name -like 'aa-annotate-*-win-x64.zip' -or
+                $_.Name -like 'aa-annotate-*-linux-x64.tar.gz'
+              } |
+              Sort-Object Name |
+              Select-Object -ExpandProperty FullName
+          )
+          if ($assets.Count -ne 2) {
+            throw "Expected exactly two release assets, found $($assets.Count): $($assets -join ', ')"
           }
 
           $previousErrorActionPreference = $ErrorActionPreference
@@ -54,16 +135,26 @@ jobs:
           if ($releaseExists) {
             gh release edit $tag `
               --repo '${{ github.repository }}' `
-              --title "AA Annotate $tag" `
+              --title "AA.Annotate $tag" `
               --notes-file $notes
-            gh release upload $tag $asset `
+            if ($LASTEXITCODE -ne 0) {
+              throw "Updating release metadata failed for $tag."
+            }
+
+            gh release upload $tag @assets `
               --repo '${{ github.repository }}' `
               --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Uploading release assets failed for $tag."
+            }
           }
           else {
-            gh release create $tag $asset `
+            gh release create $tag @assets `
               --repo '${{ github.repository }}' `
-              --title "AA Annotate $tag" `
+              --title "AA.Annotate $tag" `
               --notes-file $notes `
               --verify-tag
+            if ($LASTEXITCODE -ne 0) {
+              throw "Creating release failed for $tag."
+            }
           }

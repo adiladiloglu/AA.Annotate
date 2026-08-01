@@ -29,7 +29,7 @@ internal static class SessionConfirmationPolicy
     {
         return new SessionConfirmationPresentation(
             "Cancel annotation session?",
-            "This will discard the current captures and annotations and close AA Annotate. This cannot be undone.",
+            "This will discard the current captures and annotations and close AA.Annotate. This cannot be undone.",
             "Cancel session",
             IsDestructive: true);
     }

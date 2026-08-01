@@ -31,7 +31,11 @@ public sealed class AppLauncherTests
         var appPath = Path.Combine(appFolder, "AA.Annotate.App.exe");
         File.WriteAllText(appPath, string.Empty);
 
-        var resolved = AppLauncher.ResolveExecutable(cliFolder, _ => null);
+        var resolved = AppLauncher.ResolveExecutable(
+            cliFolder,
+            _ => null,
+            AppHostPlatform.Windows,
+            Architecture.X64);
 
         Assert.Equal(appPath, resolved);
     }
@@ -48,7 +52,11 @@ public sealed class AppLauncherTests
         var appPath = Path.Combine(appFolder, "AA.Annotate.App.exe");
         File.WriteAllText(appPath, string.Empty);
 
-        var resolved = AppLauncher.ResolveExecutable(cliFolder, _ => null);
+        var resolved = AppLauncher.ResolveExecutable(
+            cliFolder,
+            _ => null,
+            AppHostPlatform.Windows,
+            Architecture.X64);
 
         Assert.Equal(appPath, resolved);
     }
@@ -193,7 +201,8 @@ public sealed class AppLauncherTests
             @"C:\Tools\AA.Annotate.App.exe",
             @"C:\Temp\AA.Annotate\sessions\1",
             @"C:\Temp\AA.Annotate\exports\1",
-            TimeSpan.FromSeconds(60));
+            TimeSpan.FromSeconds(60),
+            AppHostPlatform.Windows);
 
         Assert.Equal(@"C:\Tools\AA.Annotate.App.exe", startInfo.FileName);
         Assert.True(startInfo.UseShellExecute);
@@ -210,7 +219,8 @@ public sealed class AppLauncherTests
             @"C:\Temp\session",
             @"C:\Temp\export",
             idleTimeout: null,
-            defaultScalePercent: 50);
+            defaultScalePercent: 50,
+            AppHostPlatform.Windows);
 
         Assert.Equal(
             ["--session", @"C:\Temp\session", "--export", @"C:\Temp\export", "--caller", "agent", "--default-scale", "50"],

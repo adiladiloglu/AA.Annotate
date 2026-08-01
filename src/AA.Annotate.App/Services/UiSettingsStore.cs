@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AA.Annotate.Core.Services;
 using AA.Annotate.Core.Serialization;
 
 namespace AA.Annotate.App.Services;
@@ -7,10 +8,12 @@ public sealed class UiSettingsStore
 {
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public UiSettingsStore(string? settingsPath = null)
+    public UiSettingsStore(
+        string? settingsPath = null,
+        AppPathResolver? pathResolver = null)
     {
         SettingsPath = string.IsNullOrWhiteSpace(settingsPath)
-            ? GetDefaultSettingsPath()
+            ? GetDefaultSettingsPath(pathResolver)
             : Path.GetFullPath(settingsPath);
         _jsonOptions = SessionJsonOptions.Create();
     }
@@ -58,20 +61,14 @@ public sealed class UiSettingsStore
         {
             if (!string.IsNullOrEmpty(directory))
             {
-                Directory.CreateDirectory(directory);
+                PrivateFileSystem.CreateDirectory(directory);
             }
 
             var currentSettings = settings with
             {
                 SchemaVersion = UiSettings.CurrentSchemaVersion
             };
-            await using (var stream = new FileStream(
-                             tempPath,
-                             FileMode.Create,
-                             FileAccess.Write,
-                             FileShare.None,
-                             bufferSize: 4096,
-                             useAsync: true))
+            await using (var stream = PrivateFileSystem.CreateFile(tempPath))
             {
                 await JsonSerializer.SerializeAsync(
                     stream,
@@ -82,6 +79,7 @@ public sealed class UiSettingsStore
             }
 
             File.Move(tempPath, SettingsPath, overwrite: true);
+            PrivateFileSystem.ProtectFile(SettingsPath);
             return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -96,11 +94,10 @@ public sealed class UiSettingsStore
         }
     }
 
-    public static string GetDefaultSettingsPath()
+    public static string GetDefaultSettingsPath(AppPathResolver? pathResolver = null)
     {
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AA.Annotate",
+            (pathResolver ?? new AppPathResolver()).GetConfigDirectory(),
             "ui-settings.json");
     }
 

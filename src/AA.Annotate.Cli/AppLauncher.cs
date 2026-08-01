@@ -263,6 +263,6 @@ public class AppLauncher
             return AppHostPlatform.MacOS;
         }
 
-        throw new PlatformNotSupportedException("AA Annotate supports Windows, Linux, and macOS.");
+        throw new PlatformNotSupportedException("AA.Annotate supports Windows, Linux, and macOS.");
     }
 }

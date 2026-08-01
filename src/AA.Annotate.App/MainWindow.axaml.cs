@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private readonly IScreenCaptureService _captureService;
     private readonly IWindowIntegration _windowIntegration;
     private readonly ToolbarWindow _toolbarWindow;
+    private readonly ToolbarSurface _embeddedToolbarSurface;
     private readonly ToolbarPlacementController _toolbarPlacementController;
     private readonly OverlayWindowCoordinator _windowCoordinator;
     private readonly PortableImageCropWriter _cropWriter = new();
@@ -66,6 +67,15 @@ public partial class MainWindow : Window
     private bool _isFinishing;
     private bool _isUiInitialized;
     private bool _isFinalClose;
+    private bool _isDraggingEmbeddedToolbar;
+    private bool _isDisplayDropdownOpen;
+    private bool _isCaptureDropdownOpen;
+    private bool _isAboutPanelOpen;
+    private bool _isCaptureStatusOpen;
+    private bool _isSyncingToolbarPopups;
+    private bool _toolbarVisible = true;
+    private Point _embeddedToolbarDragStart;
+    private Point _embeddedToolbarOrigin;
 
     public MainWindow()
         : this(null, null, null, null, null, CaptureScale.DefaultPercent, LaunchCaller.Human)
@@ -114,17 +124,34 @@ public partial class MainWindow : Window
         _launchCaller = launchCaller;
         InitializeComponent();
         _toolbarWindow = new ToolbarWindow();
+        _embeddedToolbarSurface = new ToolbarSurface();
+        EmbeddedToolbarHost.Content = _embeddedToolbarSurface;
         _toolbarPlacementController = new ToolbarPlacementController(
             _toolbarWindow,
             new UiSettingsStore());
         _windowCoordinator = new OverlayWindowCoordinator(
             this,
             _toolbarWindow,
+            EmbeddedToolbarHost,
             _windowIntegration,
-            _toolbarPlacementController.ClampToVisibleArea);
+            _toolbarPlacementController.ClampToVisibleArea,
+            PositionEmbeddedToolbar);
         Opened += OnOpened;
+        Activated += OnOverlayActivated;
         Closing += OnClosing;
         _toolbarWindow.Closing += OnToolbarClosing;
+        _embeddedToolbarSurface.DragRequested += OnEmbeddedToolbarDragRequested;
+        EmbeddedToolbarHost.AddHandler(
+            PointerMovedEvent,
+            OnEmbeddedToolbarPointerMoved,
+            RoutingStrategies.Bubble,
+            handledEventsToo: true);
+        EmbeddedToolbarHost.AddHandler(
+            PointerReleasedEvent,
+            OnEmbeddedToolbarPointerReleased,
+            RoutingStrategies.Bubble,
+            handledEventsToo: true);
+        EmbeddedToolbarHost.PointerCaptureLost += (_, _) => _isDraggingEmbeddedToolbar = false;
         AnnotationCanvas.AddHandler(
             PointerPressedEvent,
             OnAnnotationPointerPressedTunnel,
@@ -133,20 +160,8 @@ public partial class MainWindow : Window
         AnnotationCanvas.PointerPressed += OnAnnotationPointerPressed;
         AnnotationCanvas.PointerMoved += OnAnnotationPointerMoved;
         AnnotationCanvas.PointerReleased += OnAnnotationPointerReleased;
-        CommandBar.MoveSelectorRequested += (_, _) => ToggleDisplayDropdown();
-        CommandBar.CaptureRequested += async (_, _) => await RequestCaptureAsync();
-        CommandBar.CaptureSelectorRequested += (_, _) => ToggleCaptureDropdown();
-        CommandBar.CropRequested += async (_, _) => await ActivateCropAsync();
-        CommandBar.PrivacyMaskRequested += async (_, _) => await ActivatePrivacyMaskAsync();
-        CommandBar.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
-        CaptureScaleSelector.ScaleChanged += (_, percent) => SetCurrentCaptureScalePercent(percent);
-        CommandBar.FinishRequested += async (_, _) => await FinishAsync();
-        CommandBar.AboutRequested += (_, _) => ToggleAboutPanel();
-        CommandBar.CancelRequested += async (_, _) => await RequestCancelAsync();
-        DisplayDropdown.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
-        CaptureDropdown.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
-        CaptureDropdown.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
-        CaptureDropdown.NewCaptureRequested += async (_, _) => await RequestCaptureAsync();
+        ConfigureToolbarSurface(_toolbarWindow.Surface);
+        ConfigureToolbarSurface(_embeddedToolbarSurface);
         CommentEditor.DeleteRequested += (_, _) => DeleteCommentTarget();
         CommentEditor.CancelRequested += (_, _) => CancelCommentTarget();
         CommentEditor.SaveRequested += (_, text) => SaveCommentTarget(text);
@@ -166,34 +181,43 @@ public partial class MainWindow : Window
         SessionConfirmationCancelButton.Click += (_, _) => CompleteSessionConfirmation(confirmed: false);
         SessionConfirmationConfirmButton.Click += (_, _) => CompleteSessionConfirmation(confirmed: true);
         SessionConfirmationOverlay.KeyDown += OnSessionConfirmationKeyDown;
-        AboutCloseButton.Click += (_, _) => CloseAboutPanel();
-        CaptureStatusDismissButton.Click += (_, _) => CloseCaptureStatusFeedback();
-        AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
-        CommandBar.SetAgentCompletion(_launchCaller == LaunchCaller.Agent);
+        ForEachToolbarSurface(surface => surface.CommandBarView.SetAgentCompletion(_launchCaller == LaunchCaller.Agent));
         IdleWarningSendButton.Content = _launchCaller == LaunchCaller.Agent ? "Send" : "Export";
         RegisterUserActivityHandlers(this);
         RegisterUserActivityHandlers(_toolbarWindow);
     }
 
-    private FloatingCommandBar CommandBar => _toolbarWindow.CommandBarView;
+    private ToolbarSurface ActiveToolbarSurface => _windowCoordinator.IsUsingEmbeddedToolbar
+        ? _embeddedToolbarSurface
+        : _toolbarWindow.Surface;
 
-    private CaptureScaleSelector CaptureScaleSelector => _toolbarWindow.CaptureScaleSelectorView;
+    private void ConfigureToolbarSurface(ToolbarSurface surface)
+    {
+        surface.CommandBarView.MoveSelectorRequested += (_, _) => ToggleDisplayDropdown();
+        surface.CommandBarView.CaptureRequested += async (_, _) => await RequestCaptureAsync();
+        surface.CommandBarView.CaptureSelectorRequested += (_, _) => ToggleCaptureDropdown();
+        surface.CommandBarView.CropRequested += async (_, _) => await ActivateCropAsync();
+        surface.CommandBarView.PrivacyMaskRequested += async (_, _) => await ActivatePrivacyMaskAsync();
+        surface.CommandBarView.AnnotationRequested += async (_, _) => await ActivateAnnotationAsync();
+        surface.CaptureScaleSelectorView.ScaleChanged += (_, percent) => SetCurrentCaptureScalePercent(percent);
+        surface.CommandBarView.FinishRequested += async (_, _) => await FinishAsync();
+        surface.CommandBarView.AboutRequested += (_, _) => ToggleAboutPanel();
+        surface.CommandBarView.CancelRequested += async (_, _) => await RequestCancelAsync();
+        surface.DisplayDropdownView.DisplaySelected += (_, display) => MoveToDisplay(display.Display);
+        surface.CaptureDropdownView.CaptureSelected += (_, capture) => SelectCaptureForAnnotation(capture);
+        surface.CaptureDropdownView.CaptureDeleteRequested += (_, capture) => DeleteCapture(capture);
+        surface.CaptureDropdownView.NewCaptureRequested += async (_, _) => await RequestCaptureAsync();
+        surface.AboutCloseButton.Click += (_, _) => CloseAboutPanel();
+        surface.CaptureStatusDismissButton.Click += (_, _) => CloseCaptureStatusFeedback();
+        surface.AboutGitHubLinkText.PointerPressed += (_, _) => OpenGitHubRepository();
+        surface.PopupClosed += (_, kind) => OnToolbarPopupClosed(surface, kind);
+    }
 
-    private DisplayDropdown DisplayDropdown => _toolbarWindow.DisplayDropdownView;
-
-    private CaptureDropdown CaptureDropdown => _toolbarWindow.CaptureDropdownView;
-
-    private Button AboutCloseButton => _toolbarWindow.AboutCloseButton;
-
-    private TextBlock AboutVersionText => _toolbarWindow.AboutVersionText;
-
-    private TextBlock AboutGitHubLinkText => _toolbarWindow.AboutGitHubLinkText;
-
-    private Button CaptureStatusDismissButton => _toolbarWindow.CaptureStatusDismissButton;
-
-    private TextBlock CaptureStatusTitleText => _toolbarWindow.CaptureStatusTitleText;
-
-    private TextBlock CaptureStatusMessageText => _toolbarWindow.CaptureStatusMessageText;
+    private void ForEachToolbarSurface(Action<ToolbarSurface> action)
+    {
+        action(_toolbarWindow.Surface);
+        action(_embeddedToolbarSurface);
+    }
 
     private void RegisterUserActivityHandlers(Interactive source)
     {
@@ -217,28 +241,199 @@ public partial class MainWindow : Window
         await _toolbarPlacementController.InitializeAsync();
         _windowCoordinator.RevealToolbar();
         await EnsureSessionAsync();
-        AboutVersionText.Text = CreateAboutVersionText();
+        ForEachToolbarSurface(surface => surface.AboutVersionText.Text = CreateAboutVersionText());
         ResetIdleTimer();
         UpdateChrome();
-        CommandBar.PlayStartupAttentionAnimation();
+        _toolbarWindow.CommandBarView.PlayStartupAttentionAnimation();
+    }
+
+    private void OnOverlayActivated(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(
+            _windowCoordinator.KeepToolbarAboveOverlay,
+            DispatcherPriority.Render);
+    }
+
+    private void PositionEmbeddedToolbar()
+    {
+        if (!ReferenceEquals(EmbeddedToolbarHost.Content, _embeddedToolbarSurface))
+        {
+            return;
+        }
+
+        var (displayBounds, scaling) = GetEmbeddedToolbarDisplayGeometry();
+        _embeddedToolbarSurface.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = _embeddedToolbarSurface.DesiredSize;
+        var availableWidth = Bounds.Width > 0 ? Bounds.Width : displayBounds.Width / scaling;
+        var availableHeight = Bounds.Height > 0 ? Bounds.Height : displayBounds.Height / scaling;
+        var preferred = _toolbarPlacementController.PreferredPosition;
+        var left = (preferred.X - displayBounds.X) / scaling;
+        var top = (preferred.Y - displayBounds.Y) / scaling;
+
+        Canvas.SetLeft(
+            EmbeddedToolbarHost,
+            Math.Clamp(left, 0, Math.Max(0, availableWidth - size.Width)));
+        Canvas.SetTop(
+            EmbeddedToolbarHost,
+            Math.Clamp(top, 0, Math.Max(0, availableHeight - size.Height)));
+    }
+
+    private void OnEmbeddedToolbarDragRequested(object? sender, PointerPressedEventArgs e)
+    {
+        if (!ReferenceEquals(EmbeddedToolbarHost.Content, _embeddedToolbarSurface))
+        {
+            return;
+        }
+
+        _isDraggingEmbeddedToolbar = true;
+        _embeddedToolbarDragStart = e.GetPosition(EmbeddedToolbarLayer);
+        _embeddedToolbarOrigin = new Point(
+            Read(Canvas.GetLeft(EmbeddedToolbarHost)),
+            Read(Canvas.GetTop(EmbeddedToolbarHost)));
+        e.Pointer.Capture(EmbeddedToolbarHost);
+        e.Handled = true;
+    }
+
+    private void OnEmbeddedToolbarPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_isDraggingEmbeddedToolbar)
+        {
+            return;
+        }
+
+        var current = e.GetPosition(EmbeddedToolbarLayer);
+        var size = _embeddedToolbarSurface.Bounds.Size;
+        var available = EmbeddedToolbarLayer.Bounds.Size;
+        var left = _embeddedToolbarOrigin.X + current.X - _embeddedToolbarDragStart.X;
+        var top = _embeddedToolbarOrigin.Y + current.Y - _embeddedToolbarDragStart.Y;
+        Canvas.SetLeft(
+            EmbeddedToolbarHost,
+            Math.Clamp(left, 0, Math.Max(0, available.Width - size.Width)));
+        Canvas.SetTop(
+            EmbeddedToolbarHost,
+            Math.Clamp(top, 0, Math.Max(0, available.Height - size.Height)));
+        e.Handled = true;
+    }
+
+    private void OnEmbeddedToolbarPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_isDraggingEmbeddedToolbar)
+        {
+            return;
+        }
+
+        _isDraggingEmbeddedToolbar = false;
+        e.Pointer.Capture(null);
+        var (displayBounds, scaling) = GetEmbeddedToolbarDisplayGeometry();
+        _toolbarPlacementController.SetPreferredPosition(new PixelPoint(
+            displayBounds.X + (int)Math.Round(Read(Canvas.GetLeft(EmbeddedToolbarHost)) * scaling),
+            displayBounds.Y + (int)Math.Round(Read(Canvas.GetTop(EmbeddedToolbarHost)) * scaling)));
+        PositionEmbeddedToolbar();
+        e.Handled = true;
+    }
+
+    private (PixelRect Bounds, double Scaling) GetEmbeddedToolbarDisplayGeometry()
+    {
+        var display = _activeDisplay ?? GetDisplayContainingWindow();
+        var screen = Screens.ScreenFromPoint(new PixelPoint(
+            display.Bounds.X + display.Bounds.Width / 2,
+            display.Bounds.Y + display.Bounds.Height / 2));
+        var bounds = screen?.Bounds ?? new PixelRect(
+            display.Bounds.X,
+            display.Bounds.Y,
+            display.Bounds.Width,
+            display.Bounds.Height);
+        var scaling = screen?.Scaling > 0
+            ? screen.Scaling
+            : (RenderScaling > 0 ? RenderScaling : 1);
+        return (bounds, scaling);
     }
 
     private bool IsDisplayDropdownOpen
     {
-        get => _toolbarWindow.IsDisplayDropdownOpen;
-        set => _toolbarWindow.IsDisplayDropdownOpen = value;
+        get => _isDisplayDropdownOpen;
+        set
+        {
+            _isDisplayDropdownOpen = value;
+            SyncToolbarPopups();
+        }
     }
 
     private bool IsCaptureDropdownOpen
     {
-        get => _toolbarWindow.IsCaptureDropdownOpen;
-        set => _toolbarWindow.IsCaptureDropdownOpen = value;
+        get => _isCaptureDropdownOpen;
+        set
+        {
+            _isCaptureDropdownOpen = value;
+            SyncToolbarPopups();
+        }
     }
 
     private bool IsAboutPanelOpen
     {
-        get => _toolbarWindow.IsAboutPanelOpen;
-        set => _toolbarWindow.IsAboutPanelOpen = value;
+        get => _isAboutPanelOpen;
+        set
+        {
+            _isAboutPanelOpen = value;
+            SyncToolbarPopups();
+        }
+    }
+
+    private void SyncToolbarPopups()
+    {
+        _isSyncingToolbarPopups = true;
+        try
+        {
+            ForEachToolbarSurface(static surface => surface.ClosePopups());
+            if (!_toolbarVisible)
+            {
+                _isDisplayDropdownOpen = false;
+                _isCaptureDropdownOpen = false;
+                _isAboutPanelOpen = false;
+                _isCaptureStatusOpen = false;
+                return;
+            }
+
+            var active = ActiveToolbarSurface;
+            active.IsDisplayDropdownOpen = _isDisplayDropdownOpen;
+            active.IsCaptureDropdownOpen = _isCaptureDropdownOpen;
+            active.IsAboutPanelOpen = _isAboutPanelOpen;
+            active.IsCaptureStatusOpen = _isCaptureStatusOpen;
+        }
+        finally
+        {
+            _isSyncingToolbarPopups = false;
+        }
+    }
+
+    private void OnToolbarPopupClosed(ToolbarSurface surface, ToolbarPopupKind kind)
+    {
+        if (_isSyncingToolbarPopups || !ReferenceEquals(surface, ActiveToolbarSurface))
+        {
+            return;
+        }
+
+        switch (kind)
+        {
+            case ToolbarPopupKind.Display:
+                _isDisplayDropdownOpen = false;
+                break;
+            case ToolbarPopupKind.Capture:
+                _isCaptureDropdownOpen = false;
+                if (_session.Mode == AnnotationInteractionMode.CaptureDropdownOpen)
+                {
+                    _session.Mode = AnnotationInteractionMode.Idle;
+                    ApplyCurrentWindowMode();
+                }
+
+                break;
+            case ToolbarPopupKind.About:
+                _isAboutPanelOpen = false;
+                break;
+            case ToolbarPopupKind.CaptureStatus:
+                _isCaptureStatusOpen = false;
+                break;
+        }
     }
 
     private static void OpenGitHubRepository()
@@ -266,8 +461,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        Directory.CreateDirectory(_providedSessionFolder);
-        Directory.CreateDirectory(Path.Combine(_providedSessionFolder, "captures"));
+        PrivateFileSystem.CreateDirectory(_providedSessionFolder);
+        PrivateFileSystem.CreateDirectory(Path.Combine(_providedSessionFolder, "captures"));
         var exportFolder = _providedExportFolder ?? CreateDefaultExportFolder(_providedSessionFolder);
         Directory.CreateDirectory(exportFolder);
         Directory.CreateDirectory(Path.Combine(exportFolder, "captures"));
@@ -279,8 +474,7 @@ public partial class MainWindow : Window
 
     private static string CreateDefaultExportFolder(string sessionFolder)
     {
-        var sessionId = Path.GetFileName(sessionFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        return Path.Combine(Path.GetTempPath(), "AA.Annotate", "exports", sessionId);
+        return SessionPaths.FromFolder(sessionFolder).ExportFolder;
     }
 
     private static async Task<SessionStatusDocument> InitializeProvidedSessionAsync(SessionPaths paths)
@@ -298,7 +492,7 @@ public partial class MainWindow : Window
         {
             LastActivityAtUtc = now
         };
-        await using var stream = File.Create(paths.StatusJsonPath);
+        await using var stream = PrivateFileSystem.CreateFile(paths.StatusJsonPath);
         await JsonSerializer.SerializeAsync(stream, status, SessionJsonOptions.Create());
         return status;
     }
@@ -558,7 +752,9 @@ public partial class MainWindow : Window
                         platformHandle.HandleDescriptor)));
             if (!result.IsCompleted || result.CapturedScreen is not { } captured)
             {
-                captureFeedback = CaptureOutcomeFeedbackPolicy.Create(result.Outcome);
+                captureFeedback = CaptureOutcomeFeedbackPolicy.Create(
+                    result.Outcome,
+                    result.ErrorMessage);
                 Debug.WriteLine($"Screen capture ended with {result.Outcome}: {result.ErrorMessage}");
                 return;
             }
@@ -652,14 +848,19 @@ public partial class MainWindow : Window
         IsDisplayDropdownOpen = false;
         IsCaptureDropdownOpen = false;
         IsAboutPanelOpen = false;
-        CaptureStatusTitleText.Text = feedback.Title;
-        CaptureStatusMessageText.Text = feedback.Message;
-        _toolbarWindow.IsCaptureStatusOpen = true;
+        ForEachToolbarSurface(surface =>
+        {
+            surface.CaptureStatusTitleText.Text = feedback.Title;
+            surface.CaptureStatusMessageText.Text = feedback.Message;
+        });
+        _isCaptureStatusOpen = true;
+        SyncToolbarPopups();
     }
 
     private void CloseCaptureStatusFeedback()
     {
-        _toolbarWindow.IsCaptureStatusOpen = false;
+        _isCaptureStatusOpen = false;
+        SyncToolbarPopups();
     }
 
     private void StartCaptureHeartbeat()
@@ -779,10 +980,10 @@ public partial class MainWindow : Window
         if (_isAnnotationToggleActive)
         {
             _isPrivacyMaskToggleActive = false;
-            CommandBar.SetPrivacyMaskActive(false);
+            ForEachToolbarSurface(surface => surface.CommandBarView.SetPrivacyMaskActive(false));
         }
 
-        CommandBar.SetAnnotationActive(_isAnnotationToggleActive);
+        ForEachToolbarSurface(surface => surface.CommandBarView.SetAnnotationActive(_isAnnotationToggleActive));
 
         if (!_isAnnotationToggleActive)
         {
@@ -825,10 +1026,10 @@ public partial class MainWindow : Window
         if (_isPrivacyMaskToggleActive)
         {
             _isAnnotationToggleActive = false;
-            CommandBar.SetAnnotationActive(false);
+            ForEachToolbarSurface(surface => surface.CommandBarView.SetAnnotationActive(false));
         }
 
-        CommandBar.SetPrivacyMaskActive(_isPrivacyMaskToggleActive);
+        ForEachToolbarSurface(surface => surface.CommandBarView.SetPrivacyMaskActive(_isPrivacyMaskToggleActive));
 
         if (!_isPrivacyMaskToggleActive)
         {
@@ -887,7 +1088,7 @@ public partial class MainWindow : Window
         {
             ScreenshotSurface.SetImage(capture.DisplayImagePath);
             BlurredCropMask.SetImage(capture.DisplayImagePath);
-            CaptureScaleSelector.SetCapture(capture.Number, capture.ExportScalePercent, capture.PreviewPixelSize);
+            UpdateCaptureQualitySelector(CreateCurrentPresentation());
             RefreshAnnotations();
             RefreshCropMaskVisibility();
         }
@@ -964,9 +1165,27 @@ public partial class MainWindow : Window
     private void ApplyCurrentPresentation()
     {
         var presentation = CreateCurrentPresentation();
+        _toolbarVisible = presentation.ToolbarVisible;
         ScreenshotSurface.IsVisible = _session.CurrentCapture is not null && presentation.CaptureSurfaceVisible;
         AnnotationCanvas.IsVisible = ScreenshotSurface.IsVisible;
+        UpdateCaptureQualitySelector(presentation);
         _windowCoordinator.Apply(presentation, _activeDisplay);
+        SyncToolbarPopups();
+    }
+
+    private void UpdateCaptureQualitySelector(OverlayPresentation presentation)
+    {
+        if (_session.CurrentCapture is { } capture &&
+            CaptureQualitySelectorPolicy.ShouldShow(hasCurrentCapture: true, presentation))
+        {
+            ForEachToolbarSurface(surface => surface.CaptureScaleSelectorView.SetCapture(
+                capture.Number,
+                capture.ExportScalePercent,
+                capture.PreviewPixelSize));
+            return;
+        }
+
+        ForEachToolbarSurface(surface => surface.CaptureScaleSelectorView.ClearCapture());
     }
 
     private void SelectCapture(CaptureViewModel capture)
@@ -1053,10 +1272,13 @@ public partial class MainWindow : Window
         _isAnnotationToggleActive = false;
         _isPrivacyMaskToggleActive = false;
         _session.Mode = AnnotationInteractionMode.Idle;
-        CommandBar.SetAnnotationActive(false);
-        CommandBar.SetPrivacyMaskActive(false);
+        ForEachToolbarSurface(surface =>
+        {
+            surface.CommandBarView.SetAnnotationActive(false);
+            surface.CommandBarView.SetPrivacyMaskActive(false);
+        });
         ScreenshotSurface.SetImage(null);
-        CaptureScaleSelector.ClearCapture();
+        ForEachToolbarSurface(surface => surface.CaptureScaleSelectorView.ClearCapture());
         BlurredCropMask.SetImage(null);
         BlurredCropMask.IsVisible = false;
         CommentEditor.IsVisible = false;
@@ -1125,8 +1347,11 @@ public partial class MainWindow : Window
         {
             _isAnnotationToggleActive = false;
             _isPrivacyMaskToggleActive = false;
-            CommandBar.SetAnnotationActive(false);
-            CommandBar.SetPrivacyMaskActive(false);
+            ForEachToolbarSurface(surface =>
+            {
+                surface.CommandBarView.SetAnnotationActive(false);
+                surface.CommandBarView.SetPrivacyMaskActive(false);
+            });
             _session.Mode = AnnotationInteractionMode.EditingCrop;
             IsAboutPanelOpen = false;
             if (_activeDisplay is { } display)
@@ -1471,7 +1696,7 @@ public partial class MainWindow : Window
         _session.SelectedAnnotation = annotation;
         _session.Mode = AnnotationInteractionMode.AnnotationSelected;
         _isPrivacyMaskToggleActive = false;
-        CommandBar.SetPrivacyMaskActive(false);
+        ForEachToolbarSurface(surface => surface.CommandBarView.SetPrivacyMaskActive(false));
         _commentTarget = annotation;
         CommentEditor.IsVisible = true;
         CommentEditor.Open(annotation.Comment);
@@ -1974,19 +2199,17 @@ public partial class MainWindow : Window
         RefreshCaptureSurfaceVisibility();
         UpdateOverlayCreationHints();
         var canUseCaptureControls = CanUseCaptureControls();
-        CommandBar.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0);
-        if (_session.CurrentCapture is { } capture)
+        ForEachToolbarSurface(surface =>
+            surface.CommandBarView.SetCaptureNumber(_session.CurrentCapture?.Number ?? 0));
+        UpdateCaptureQualitySelector(CreateCurrentPresentation());
+        var displays = CreateDisplayViewModels();
+        ForEachToolbarSurface(surface =>
         {
-            CaptureScaleSelector.SetCapture(capture.Number, capture.ExportScalePercent, capture.PreviewPixelSize);
-        }
-        else
-        {
-            CaptureScaleSelector.ClearCapture();
-        }
-        CommandBar.SetCaptureControlsEnabled(canUseCaptureControls);
-        CaptureDropdown.SetCaptures(_session.Captures);
-        CaptureDropdown.SetCanCreateCapture(canUseCaptureControls);
-        DisplayDropdown.SetDisplays(CreateDisplayViewModels());
+            surface.CommandBarView.SetCaptureControlsEnabled(canUseCaptureControls);
+            surface.CaptureDropdownView.SetCaptures(_session.Captures);
+            surface.CaptureDropdownView.SetCanCreateCapture(canUseCaptureControls);
+            surface.DisplayDropdownView.SetDisplays(displays);
+        });
         if (IsCaptureDropdownOpen)
         {
             Dispatcher.UIThread.Post(ApplyCurrentWindowMode);

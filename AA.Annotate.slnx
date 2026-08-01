@@ -3,6 +3,7 @@
     <Project Path="src/AA.Annotate.App/AA.Annotate.App.csproj" />
     <Project Path="src/AA.Annotate.Cli/AA.Annotate.Cli.csproj" />
     <Project Path="src/AA.Annotate.Core/AA.Annotate.Core.csproj" />
+    <Project Path="src/AA.Annotate.Platform.Linux/AA.Annotate.Platform.Linux.csproj" />
     <Project Path="src/AA.Annotate.Platform.Windows/AA.Annotate.Platform.Windows.csproj" />
     <Project Path="src/AA.Annotate.Platform/AA.Annotate.Platform.csproj" />
   </Folder>
@@ -10,5 +11,9 @@
     <Project Path="tests/AA.Annotate.App.Tests/AA.Annotate.App.Tests.csproj" />
     <Project Path="tests/AA.Annotate.Cli.Tests/AA.Annotate.Cli.Tests.csproj" />
     <Project Path="tests/AA.Annotate.Core.Tests/AA.Annotate.Core.Tests.csproj" />
+    <Project Path="tests/AA.Annotate.Platform.Linux.Tests/AA.Annotate.Platform.Linux.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/AA.Annotate.Platform.Linux.Smoke/AA.Annotate.Platform.Linux.Smoke.csproj" />
   </Folder>
 </Solution>

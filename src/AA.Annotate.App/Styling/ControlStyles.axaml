@@ -5,34 +5,66 @@
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="7" />
-    <Setter Property="Foreground" Value="#E8EAED" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Padding" Value="0" />
   </Style>
   <Style Selector="Button.iconButton:pointerover">
-    <Setter Property="Background" Value="#24FFFFFF" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.iconButton:pressed">
-    <Setter Property="Background" Value="#36FFFFFF" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.activeIconButton">
-    <Setter Property="Background" Value="#2AFFFFFF" />
-    <Setter Property="BorderBrush" Value="#30FFFFFF" />
+    <Setter Property="Background" Value="{DynamicResource ActiveControlBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Padding" Value="8,0" />
   </Style>
+  <Style Selector="Button.activeIconButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ActiveControlHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.activeIconButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ActiveControlPressedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.captureSelectorButton">
+    <Setter Property="Background" Value="{DynamicResource CaptureSelectorBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CaptureSelectorBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="8,0" />
+  </Style>
+  <Style Selector="Button.captureSelectorButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.captureSelectorButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
   <Style Selector="Button.scalePresetButton">
     <Setter Property="Background" Value="{DynamicResource PanelItemBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Width" Value="78" />
     <Setter Property="MinWidth" Value="78" />
@@ -44,14 +76,45 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.scalePresetButton:pointerover">
-    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource PanelItemHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.scalePresetButton:pressed">
-    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedBrush}" />
+    <Setter Property="Background" Value="{DynamicResource PanelItemPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.panelItemButton">
+    <Setter Property="Background" Value="{DynamicResource PanelItemBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource OverlayBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="CornerRadius" Value="7" />
+  </Style>
+  <Style Selector="Button.panelItemButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource PanelItemHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.panelItemButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource PanelItemPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.panelItemButton.selectedPanelItemButton">
+    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource GripBrush}" />
+  </Style>
+  <Style Selector="Button.panelItemButton.selectedPanelItemButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+  </Style>
+  <Style Selector="Button.panelItemButton.selectedPanelItemButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource PanelItemSelectedPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
   </Style>
   <Style Selector="TextBox.scaleTextBox">
     <Setter Property="Background" Value="Transparent" />
@@ -59,8 +122,8 @@
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="0" />
     <Setter Property="FocusAdorner" Value="{x:Null}" />
-    <Setter Property="Foreground" Value="White" />
-    <Setter Property="CaretBrush" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="SelectionBrush" Value="{DynamicResource TextSelectionBrush}" />
     <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextSelectionForegroundBrush}" />
   </Style>
@@ -88,18 +151,60 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Padding" Value="0" />
   </Style>
   <Style Selector="Button.captureActionButton:pointerover">
-    <Setter Property="Background" Value="#24FFFFFF" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.captureActionButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.confirmButton">
-    <Setter Property="Background" Value="{DynamicResource ConfirmBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ConfirmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfirmBrush}" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Button.confirmButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ConfirmHoverSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfirmHoverBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfirmHoverBrush}" />
+  </Style>
+  <Style Selector="Button.confirmButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ConfirmPressedSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfirmPressedBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfirmPressedBrush}" />
+  </Style>
+  <Style Selector="Button.dangerIconButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.dangerIconButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.destructiveButton">
+    <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Foreground" Value="White" />
@@ -108,21 +213,33 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Padding" Value="0" />
   </Style>
-  <Style Selector="Button.destructiveButton">
-    <Setter Property="Background" Value="{DynamicResource InvalidAnnotationStrokeBrush}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="White" />
-    <Setter Property="CornerRadius" Value="7" />
-    <Setter Property="HorizontalContentAlignment" Value="Center" />
-    <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="Padding" Value="0" />
+  <Style Selector="Button.destructiveButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.destructiveButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.iconButton.dangerIconButton:pointerover">
+    <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.iconButton.dangerIconButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.commentTextButton">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="#C8CDD3" />
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="Padding" Value="10,0" />
     <Setter Property="Height" Value="30" />
@@ -131,14 +248,22 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.commentTextButton:pointerover">
-    <Setter Property="Background" Value="#18FFFFFF" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="Button.commentTextButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
   </Style>
   <Style Selector="Button.commentPrimaryButton">
-    <Setter Property="Background" Value="#DCE8EAED" />
+    <Setter Property="Background" Value="{DynamicResource ActiveControlBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="#16171A" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="Padding" Value="12,0" />
     <Setter Property="Height" Value="30" />
@@ -148,7 +273,12 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.commentPrimaryButton:pointerover">
-    <Setter Property="Background" Value="#F5F7FA" />
+    <Setter Property="Background" Value="{DynamicResource ActiveControlHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.commentPrimaryButton:pressed">
+    <Setter Property="Background" Value="{DynamicResource ActiveControlPressedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActiveControlForegroundBrush}" />
   </Style>
   <Style Selector="Border.commentTextHost">
     <Setter Property="Background" Value="Transparent" />
@@ -162,9 +292,9 @@
   </Style>
   <Style Selector="TextBox.commentTextBox">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="FocusAdorner" Value="{x:Null}" />
-    <Setter Property="CaretBrush" Value="White" />
+    <Setter Property="CaretBrush" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="SelectionBrush" Value="{DynamicResource TextSelectionBrush}" />
     <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextSelectionForegroundBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />

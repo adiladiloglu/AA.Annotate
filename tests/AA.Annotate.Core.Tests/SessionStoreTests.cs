@@ -143,6 +143,42 @@ public sealed class SessionStoreTests
     }
 
     [Fact]
+    public async Task ConcurrentActivityWriteCannotOverwriteCompletedStatus()
+    {
+        var root = CreateTempDirectory();
+        var createdAt = DateTimeOffset.Parse("2026-06-28T15:55:00Z");
+        var activityClockEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseActivityClock = new ManualResetEventSlim();
+        var clockCalls = 0;
+        var store = new SessionStore(() =>
+        {
+            var call = Interlocked.Increment(ref clockCalls);
+            if (call == 2)
+            {
+                activityClockEntered.TrySetResult();
+                Assert.True(releaseActivityClock.Wait(TimeSpan.FromSeconds(30)));
+                return createdAt.AddMinutes(1);
+            }
+
+            return call == 1 ? createdAt : createdAt.AddMinutes(2);
+        });
+        var paths = await store.CreateSessionAsync(root);
+        var activityWrite = Task.Run(() => store.TouchActivityAsync(paths));
+
+        await activityClockEntered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var completionWrite = store.MarkCompletedAsync(paths, "review.md", "annotations.json");
+        await Task.Delay(100);
+        releaseActivityClock.Set();
+        await Task.WhenAll(activityWrite, completionWrite);
+
+        var status = await store.ReadStatusAsync(paths);
+
+        Assert.Equal(SessionStatus.Completed, status.Status);
+        Assert.Equal("review.md", status.ReviewPath);
+        Assert.Equal("annotations.json", status.AnnotationsPath);
+    }
+
+    [Fact]
     public async Task ReadStatusAllowsSharedWriterHandle()
     {
         var root = CreateTempDirectory();

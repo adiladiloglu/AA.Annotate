@@ -15,6 +15,7 @@ public static class WindowsNativeWindowChrome
     private const int SwpFrameChanged = 0x0020;
     private const nint HwndTop = 0;
     private const nint HwndTopmost = -1;
+    private const nint HwndNotTopmost = -2;
     private const int DwmwaWindowCornerPreference = 33;
     private const int DwmwaBorderColor = 34;
     private const int DwmwcpDoNotRound = 1;
@@ -47,6 +48,23 @@ public static class WindowsNativeWindowChrome
         _ = SetWindowPos(
             windowHandle,
             HwndTop,
+            0,
+            0,
+            0,
+            0,
+            SwpNoSize | SwpNoMove | SwpNoActivate);
+    }
+
+    public static void SetAlwaysOnTop(nint windowHandle, bool enabled)
+    {
+        if (windowHandle == 0)
+        {
+            return;
+        }
+
+        _ = SetWindowPos(
+            windowHandle,
+            enabled ? HwndTopmost : HwndNotTopmost,
             0,
             0,
             0,

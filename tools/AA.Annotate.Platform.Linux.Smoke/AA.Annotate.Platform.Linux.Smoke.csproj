@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AA.Annotate.Core\AA.Annotate.Core.csproj" />
+    <ProjectReference Include="..\..\src\AA.Annotate.Platform\AA.Annotate.Platform.csproj" />
+    <ProjectReference Include="..\..\src\AA.Annotate.Platform.Linux\AA.Annotate.Platform.Linux.csproj" />
+  </ItemGroup>
+</Project>

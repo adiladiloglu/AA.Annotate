@@ -1,4 +1,5 @@
 using Avalonia;
+using AA.Annotate.Core.Services;
 using System.Runtime.InteropServices;
 
 namespace AA.Annotate.App;
@@ -20,9 +21,10 @@ internal static class Program
         }
         catch (Exception exception)
         {
-            var logFolder = Path.Combine(Path.GetTempPath(), "AA.Annotate");
-            Directory.CreateDirectory(logFolder);
-            File.WriteAllText(Path.Combine(logFolder, "last-crash.log"), exception.ToString());
+            var logFolder = new AppPathResolver().GetPrivateRuntimeDirectory();
+            PrivateFileSystem.WriteAllText(
+                Path.Combine(logFolder, "last-crash.log"),
+                exception.ToString());
             throw;
         }
     }

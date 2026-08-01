@@ -1,14 +1,12 @@
 using AA.Annotate.App.Views;
 using Avalonia.Controls;
+using Avalonia.Controls.Platform;
 using Avalonia.Input;
-using Avalonia.Media;
 
 namespace AA.Annotate.App;
 
 public partial class ToolbarWindow : Window
 {
-    private readonly HashSet<Control> _hoveredPanels = [];
-
     internal event EventHandler? DragStarted;
 
     internal event EventHandler? DragCompleted;
@@ -16,94 +14,101 @@ public partial class ToolbarWindow : Window
     public ToolbarWindow()
     {
         InitializeComponent();
+        if (OperatingSystem.IsLinux())
+        {
+            // KWin can consume normal clicks on a non-activating toolbar as
+            // focus-only input. The Linux toolbar is an interactive command
+            // surface, so let it activate when it is shown or clicked.
+            ShowActivated = true;
+        }
 
-        ConfigurePanelHover(CommandBarElement);
-        ConfigurePanelHover(CaptureScaleSelectorElement);
-        ConfigurePanelHover(DisplayDropdownElement);
-        ConfigurePanelHover(CaptureDropdownElement);
-        ConfigurePanelHover(AboutPanelElement);
-        ConfigurePanelHover(CaptureStatusPanelElement);
-
-        CommandBarElement.DragRequested += OnDragRequested;
-        AboutCloseButtonElement.Click += (_, _) => IsAboutPanelOpen = false;
-        CaptureStatusDismissButtonElement.Click += (_, _) => IsCaptureStatusOpen = false;
+        // KWin treats an initially non-activating TOOLBAR window as passive
+        // chrome and can consume ordinary button clicks. This is still styled
+        // as a borderless, skip-taskbar toolbar, but advertises an interactive
+        // NORMAL X11 type so KDE gives it standard input semantics.
+        X11Properties.SetNetWmWindowType(this, X11NetWmWindowType.Normal);
+        Surface = new ToolbarSurface();
+        AttachSurface();
+        Surface.DragRequested += OnDragRequested;
     }
 
-    internal FloatingCommandBar CommandBarView => CommandBarElement;
+    internal ToolbarSurface Surface { get; }
 
-    internal CaptureScaleSelector CaptureScaleSelectorView => CaptureScaleSelectorElement;
+    internal FloatingCommandBar CommandBarView => Surface.CommandBarView;
 
-    internal DisplayDropdown DisplayDropdownView => DisplayDropdownElement;
+    internal CaptureScaleSelector CaptureScaleSelectorView => Surface.CaptureScaleSelectorView;
 
-    internal CaptureDropdown CaptureDropdownView => CaptureDropdownElement;
+    internal DisplayDropdown DisplayDropdownView => Surface.DisplayDropdownView;
 
-    internal Border AboutPanelView => AboutPanelElement;
+    internal CaptureDropdown CaptureDropdownView => Surface.CaptureDropdownView;
 
-    internal Button AboutCloseButton => AboutCloseButtonElement;
+    internal Border AboutPanelView => Surface.AboutPanelView;
 
-    internal TextBlock AboutVersionText => AboutVersionTextElement;
+    internal Button AboutCloseButton => Surface.AboutCloseButton;
 
-    internal TextBlock AboutGitHubLinkText => AboutGitHubLinkTextElement;
+    internal TextBlock AboutVersionText => Surface.AboutVersionText;
 
-    internal Border CaptureStatusPanelView => CaptureStatusPanelElement;
+    internal TextBlock AboutGitHubLinkText => Surface.AboutGitHubLinkText;
 
-    internal Button CaptureStatusDismissButton => CaptureStatusDismissButtonElement;
+    internal Border CaptureStatusPanelView => Surface.CaptureStatusPanelView;
 
-    internal TextBlock CaptureStatusTitleText => CaptureStatusTitleTextElement;
+    internal Button CaptureStatusDismissButton => Surface.CaptureStatusDismissButton;
 
-    internal TextBlock CaptureStatusMessageText => CaptureStatusMessageTextElement;
+    internal TextBlock CaptureStatusTitleText => Surface.CaptureStatusTitleText;
+
+    internal TextBlock CaptureStatusMessageText => Surface.CaptureStatusMessageText;
 
     internal bool IsDisplayDropdownOpen
     {
-        get => DisplayDropdownPopup.IsOpen;
-        set
-        {
-            DisplayDropdownPopup.IsOpen = value;
-            ClearClosedPopupHover(DisplayDropdownElement, value);
-        }
+        get => Surface.IsDisplayDropdownOpen;
+        set => Surface.IsDisplayDropdownOpen = value;
     }
 
     internal bool IsCaptureDropdownOpen
     {
-        get => CaptureDropdownPopup.IsOpen;
-        set
-        {
-            CaptureDropdownPopup.IsOpen = value;
-            ClearClosedPopupHover(CaptureDropdownElement, value);
-        }
+        get => Surface.IsCaptureDropdownOpen;
+        set => Surface.IsCaptureDropdownOpen = value;
     }
 
     internal bool IsAboutPanelOpen
     {
-        get => AboutPanelPopup.IsOpen;
-        set
-        {
-            AboutPanelPopup.IsOpen = value;
-            ClearClosedPopupHover(AboutPanelElement, value);
-        }
+        get => Surface.IsAboutPanelOpen;
+        set => Surface.IsAboutPanelOpen = value;
     }
 
     internal bool IsCaptureStatusOpen
     {
-        get => CaptureStatusPopup.IsOpen;
-        set
+        get => Surface.IsCaptureStatusOpen;
+        set => Surface.IsCaptureStatusOpen = value;
+    }
+
+    internal bool IsSurfaceAttached => ReferenceEquals(ToolbarHost.Content, Surface);
+
+    internal void AttachSurface()
+    {
+        ToolbarHost.Content = Surface;
+    }
+
+    internal void DetachSurface()
+    {
+        if (IsSurfaceAttached)
         {
-            CaptureStatusPopup.IsOpen = value;
-            ClearClosedPopupHover(CaptureStatusPanelElement, value);
+            ToolbarHost.Content = null;
         }
     }
 
     internal void ClosePopups()
     {
-        IsDisplayDropdownOpen = false;
-        IsCaptureDropdownOpen = false;
-        IsAboutPanelOpen = false;
-        IsCaptureStatusOpen = false;
+        Surface.ClosePopups();
     }
 
     private void OnDragRequested(object? sender, PointerPressedEventArgs e)
     {
-        ClosePopups();
+        if (!IsSurfaceAttached)
+        {
+            return;
+        }
+
         DragStarted?.Invoke(this, EventArgs.Empty);
         try
         {
@@ -113,42 +118,5 @@ public partial class ToolbarWindow : Window
         {
             DragCompleted?.Invoke(this, EventArgs.Empty);
         }
-    }
-
-    private void ConfigurePanelHover(Control panel)
-    {
-        panel.PointerEntered += (_, _) =>
-        {
-            _hoveredPanels.Add(panel);
-            UpdatePanelHoverState();
-        };
-        panel.PointerExited += (_, _) =>
-        {
-            _hoveredPanels.Remove(panel);
-            UpdatePanelHoverState();
-        };
-    }
-
-    private void ClearClosedPopupHover(Control panel, bool isOpen)
-    {
-        if (!isOpen && _hoveredPanels.Remove(panel))
-        {
-            UpdatePanelHoverState();
-        }
-    }
-
-    private void UpdatePanelHoverState()
-    {
-        var isActive = _hoveredPanels.Any(panel => panel.IsVisible);
-        CommandBarElement.SetPanelHoverActive(isActive);
-        DisplayDropdownElement.SetPanelHoverActive(isActive);
-        CaptureDropdownElement.SetPanelHoverActive(isActive);
-        SetAboutPanelHoverActive();
-    }
-
-    private void SetAboutPanelHoverActive()
-    {
-        AboutPanelElement.Opacity = 1;
-        AboutPanelElement.Background = App.Current?.FindResource("PanelSurfaceBrush") as IBrush;
     }
 }

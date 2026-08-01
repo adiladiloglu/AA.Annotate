@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AA.Annotate.App.Services;
 using AA.Annotate.App.ViewModels;
+using AA.Annotate.Core.Services;
 using Avalonia;
 
 namespace AA.Annotate.App.Tests;
@@ -200,18 +201,62 @@ public sealed class UiSettingsStoreTests
     }
 
     [Fact]
-    public void DefaultPathUsesLocalApplicationData()
+    public void DefaultPathUsesLocalApplicationDataOnWindows()
     {
-        var expectedRoot = Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData);
+        using var directory = new TemporaryDirectory();
+        var localAppData = Path.Combine(directory.Path, "local");
+        var resolver = new AppPathResolver(
+            _ => null,
+            _ => localAppData,
+            () => directory.Path,
+            () => "ignored",
+            _ => false,
+            isUnix: false);
 
-        var path = UiSettingsStore.GetDefaultSettingsPath();
+        var path = UiSettingsStore.GetDefaultSettingsPath(resolver);
 
-        Assert.StartsWith(expectedRoot, path, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith(
-            Path.Combine("AA.Annotate", "ui-settings.json"),
-            path,
-            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            Path.Combine(localAppData, "AA.Annotate", "ui-settings.json"),
+            path);
+    }
+
+    [Fact]
+    public void DefaultPathUsesXdgConfigHomeOnUnix()
+    {
+        using var directory = new TemporaryDirectory();
+        var configHome = Path.Combine(directory.Path, "config");
+        var resolver = new AppPathResolver(
+            variable => variable == "XDG_CONFIG_HOME" ? configHome : null,
+            _ => Path.Combine(directory.Path, "home"),
+            () => directory.Path,
+            () => "1234",
+            _ => false,
+            isUnix: true);
+
+        var path = UiSettingsStore.GetDefaultSettingsPath(resolver);
+
+        Assert.Equal(
+            Path.Combine(configHome, "aa-annotate", "ui-settings.json"),
+            path);
+    }
+
+    [Fact]
+    public async Task SettingsFileHasOwnerOnlyPermissionsOnUnix()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "private", "ui-settings.json");
+        var store = new UiSettingsStore(path);
+
+        Assert.True(await store.SaveAsync(new UiSettings()));
+
+        Assert.Equal(
+            PrivateFileSystem.PrivateFileMode,
+            File.GetUnixFileMode(path));
     }
 
     private sealed class TemporaryDirectory : IDisposable

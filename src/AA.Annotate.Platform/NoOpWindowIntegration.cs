@@ -6,6 +6,10 @@ public sealed class NoOpWindowIntegration : IWindowIntegration
     {
     }
 
+    public void SetAlwaysOnTop(nint windowHandle, bool enabled)
+    {
+    }
+
     public void BringToFrontWithoutActivation(nint windowHandle)
     {
     }

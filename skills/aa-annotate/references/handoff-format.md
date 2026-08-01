@@ -1,4 +1,4 @@
-# AA Annotate handoff format
+# AA.Annotate handoff format
 
 Use these rules only when exact artifact or coordinate interpretation is required.
 

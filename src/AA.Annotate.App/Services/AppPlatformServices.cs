@@ -1,4 +1,5 @@
 using AA.Annotate.Platform;
+using AA.Annotate.Platform.Linux;
 using AA.Annotate.Platform.Windows;
 
 namespace AA.Annotate.App.Services;
@@ -12,6 +13,13 @@ internal sealed record AppPlatformServices(
         if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
         {
             return CreateWindowsServices();
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            return new AppPlatformServices(
+                new LinuxScreenCaptureService(),
+                new LinuxX11WindowIntegration());
         }
 
         return new AppPlatformServices(

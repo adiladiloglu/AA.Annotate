@@ -30,4 +30,26 @@ public sealed class CaptureOutcomeFeedbackPolicyTests
         Assert.Contains(expectedTitleText, feedback.Title, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(expectedActionText, feedback.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void RecoverableUnavailableFailureIncludesSafePlatformDetail()
+    {
+        var feedback = CaptureOutcomeFeedbackPolicy.Create(
+            ScreenCaptureOutcome.Unavailable,
+            "Log in to an X11 session and try again.");
+
+        Assert.NotNull(feedback);
+        Assert.Contains("X11 session", feedback.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnexpectedFailureDoesNotExposeRawPlatformDetail()
+    {
+        var feedback = CaptureOutcomeFeedbackPolicy.Create(
+            ScreenCaptureOutcome.Failed,
+            "/home/example/private/capture.png");
+
+        Assert.NotNull(feedback);
+        Assert.DoesNotContain("/home/example", feedback.Message, StringComparison.Ordinal);
+    }
 }

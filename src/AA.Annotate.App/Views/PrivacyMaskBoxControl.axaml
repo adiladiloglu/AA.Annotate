@@ -16,12 +16,15 @@
                  TextAlignment="Center" />
     </Border>
     <Button Name="DeleteButton"
-            Classes="iconButton"
+            Classes="iconButton dangerIconButton"
             Width="18"
             Height="18"
             IsVisible="False"
             ToolTip.Tip="Remove privacy mask">
-      <PathIcon Width="10" Height="10" Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
+      <PathIcon Width="10"
+                Height="10"
+                Foreground="{Binding $parent[Button].Foreground}"
+                Data="M6.4,5 L12,10.6 L17.6,5 L19,6.4 L13.4,12 L19,17.6 L17.6,19 L12,13.4 L6.4,19 L5,17.6 L10.6,12 L5,6.4 Z" />
     </Button>
     <Border Name="LeftResizeHandle"
             Width="12"
