@@ -4,15 +4,29 @@ AA.Annotate is a desktop overlay for collecting screenshot annotations during AI
 
 It gives agents a small, reliable way to request visual context: capture the screen, crop the relevant area, mask private regions, draw numbered boxes, add comments, and return a generated handoff file.
 
-## Usage Demo
-
-![AA.Annotate usage demo](docs/Media/Usage_demo.gif)
-
 ## Screenshots
 
-![AA.Annotate capture workflow](docs/Media/im1.png)
+### Multiple captures and tabs
 
-![AA.Annotate annotation workflow](docs/Media/im2.png)
+Each capture is kept as a separate tab so several windows or application states can be reviewed in one session.
+
+![AA.Annotate capture selector showing two capture tabs](docs/Media/screenshots/gnome-multiple-captures.png)
+
+### Crop
+
+Crop mode limits the handoff to the relevant part of the active capture. The capture-quality selector appears only while a capture is active.
+
+![AA.Annotate crop mode on GNOME](docs/Media/screenshots/gnome-crop-mode.png)
+
+### Privacy masks and annotations
+
+Privacy masks redact selected regions, while numbered annotation boxes open a focused comment editor for review instructions.
+
+![AA.Annotate privacy mask on GNOME](docs/Media/screenshots/gnome-privacy-mask.png)
+
+![AA.Annotate numbered annotation and comment editor on GNOME](docs/Media/screenshots/gnome-annotation-comment.png)
+
+See the [screenshot gallery and capture guide](docs/screenshots.md) for the full set, including the passive KDE toolbar.
 
 ## Features
 
